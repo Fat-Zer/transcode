@@ -541,12 +541,15 @@ TC_OPTION(import_fps,         'f', "rate[,frc]",
                         goto short_usage;
                     }
                     tc_frc_code_to_value(vob->im_frc, &vob->fps);
+                    vob->ex_frc = vob->im_frc;
                 } else {
                     if (n < 1 || vob->fps < MIN_FPS) {
                         tc_error("invalid frame rate for option -f");
                         goto short_usage;
                     }
+                    vob->ex_frc = 0;
                 }
+                vob->ex_fps = vob->fps;
                 preset_flag |= TC_PROBE_NO_FPS;
 )
 TC_OPTION(hard_fps,           0,   0,
