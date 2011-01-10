@@ -960,6 +960,7 @@ MOD_decode
     }
 
     vframe.video_buf = param->buffer;
+    vframe.video_size = 0;
     if (pvn_read_video(&mod, &vframe) < 0)
         return TC_ERROR;
     param->size = vframe.video_size;

@@ -162,7 +162,7 @@ static int tc_guess_code_from_value(const double *pairs, size_t len,
 
 int tc_asr_code_from_value(int *asr_code, double ratio)
 {
-    return tc_guess_code_from_value(asr_table, TABLE_LEN(frc_table),
+    return tc_guess_code_from_value(asr_table, TABLE_LEN(asr_table),
                                     asr_code, ratio);
 }
 

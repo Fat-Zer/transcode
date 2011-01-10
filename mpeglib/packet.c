@@ -361,7 +361,7 @@ static inline mpeg_res_t mpeg_pes_find_startcode(mpeg_t *MPEG, int tries)
 // FIXME: move to inline function?
 #define MPEG_HANDLE_PACKET_BEGIN(tries) \
     MPEG->errcode = mpeg_pes_find_startcode(MPEG, tries); \
-    if(MPEG->errcode != MPEG_OK) { \
+    if(MPEG->errcode != (mpeg_err_t)MPEG_OK) { \
         return NULL; \
     } \
     hdrbuf[hdrlen++] = 0x00; \
@@ -475,7 +475,7 @@ mpeg_pkt_t* mpeg_pes_read_packet(mpeg_t *MPEG, int deepscan)
          * Sets pes->stream_id too 
          */
            
-        if(MPEG->errcode != MPEG_OK) {
+        if(MPEG->errcode != (mpeg_err_t)MPEG_OK) {
             mpeg_pkt_del(pes);
             return NULL;
         }
@@ -627,7 +627,7 @@ mpeg_res_t mpeg_probe(mpeg_t *MPEG)
     }
     
     ret = MPEG->probe(MPEG);
-    if(ret == MPEG_ERROR_PROBE_FAILED) {
+    if(ret == (mpeg_res_t)MPEG_ERROR_PROBE_FAILED) {
         MPEG->errcode = ret;
         return MPEG_ERR;
     }
@@ -655,7 +655,7 @@ mpeg_t* mpeg_open(int type, mpeg_file_t *MFILE, uint32_t flags, int *errcode)
     case MPEG_TYPE_ANY:
         mpeg_log(MPEG_LOG_INFO, "MPEG: trying with PS format...\n");
         err = mpeg_ps_open(MPEG, MFILE, flags);
-        if(err != MPEG_OK && (MPEG->errcode == MPEG_ERROR_BAD_FORMAT ||
+        if(err != (mpeg_err_t)MPEG_OK && (MPEG->errcode == MPEG_ERROR_BAD_FORMAT ||
            MPEG->errcode  == MPEG_ERROR_PROBE_FAILED)) {
                     mpeg_log(MPEG_LOG_INFO, "MPEG: trying with ES format...\n");
             err = mpeg_es_open(MPEG, MFILE, flags);

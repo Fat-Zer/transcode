@@ -35,7 +35,7 @@ typedef struct {
     TCVHandle tcvhandle;    // For tcv_zoom() when shifting
     int deinter_handle;     // For high-quality mode
     int saved_audio_len;    // Number of bytes of audio saved for second field
-    uint8_t saved_audio[SIZE_PCM_FRAME];
+    uint8_t *saved_audio;
     uint8_t saved_frame[TC_MAX_V_FRAME_WIDTH*TC_MAX_V_FRAME_HEIGHT*3];
     int saved_width, saved_height;  // For full-height operation
 } DfpsPrivateData;
@@ -61,6 +61,11 @@ static int doublefps_init(TCModuleInstance *self, uint32_t features)
     TC_MODULE_INIT_CHECK(self, MOD_FEATURES, features);
 
     self->userdata = pd = tc_malloc(sizeof(DfpsPrivateData));
+    if (!pd) {
+        tc_log_error(MOD_NAME, "init: out of memory!");
+        return TC_ERROR;
+    }
+    pd->saved_audio = tc_malloc(SIZE_PCM_FRAME);
     if (!pd) {
         tc_log_error(MOD_NAME, "init: out of memory!");
         return TC_ERROR;
