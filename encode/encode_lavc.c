@@ -1494,7 +1494,7 @@ static int tc_lavc_configure_video(TCModuleInstance *self,
                     pd->confdata.thread_count,
                     (pd->confdata.thread_count > 1) ?"s" :"");
     }
-    avcodec_thread_init(&pd->ff_vcontext, pd->confdata.thread_count);
+    pd->ff_vcontext.thread_count = pd->confdata.thread_count;
 
     pd->ff_vcodec = avcodec_find_encoder(FF_VCODEC_ID(pd));
     if (pd->ff_vcodec == NULL) {
