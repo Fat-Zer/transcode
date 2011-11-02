@@ -83,11 +83,6 @@ static void decode_mpaudio(decode_t *decode, int format)
         exit(1);
     }
 
-    if (lame_decode_init() < 0) {
-        tc_log_error(__FILE__, "failed to init decoder");
-        exit(1);
-    }
-
     in_file = fdopen(decode->fd_in, "r");
 
     if (format == MP3_AUDIO_ID) {

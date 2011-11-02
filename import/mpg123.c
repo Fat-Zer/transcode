@@ -39,6 +39,8 @@
 #define MAX_BUF 4096
 static char sbuffer[MAX_BUF];
 
+static hip_t hip;
+
 static int fskip(FILE * fp, long offset, int whence)
 {
 #ifndef PIPE_BUF
@@ -135,7 +137,7 @@ int lame_decode_initfile(FILE * fd, mp3data_struct * mp3data, int format)
     memset(mp3data, 0, sizeof(mp3data_struct));
     memset(buf, 0, bufsize);
 
-    lame_decode_init();
+    hip = hip_decode_init();
     if (!format) format = 0x55;
 
     len = 4;
@@ -184,7 +186,7 @@ int lame_decode_initfile(FILE * fd, mp3data_struct * mp3data, int format)
     // frame.  Cannot decode first frame here because we are not
     // yet prepared to handle the output.
 
-    ret = lame_decode1_headers(buf, len, pcm_l, pcm_r, mp3data);
+    ret = hip_decode1_headers(hip, buf, len, pcm_l, pcm_r, mp3data);
     if (-1 == ret)
         return -1;
 
@@ -193,7 +195,7 @@ int lame_decode_initfile(FILE * fd, mp3data_struct * mp3data, int format)
         len = fread(buf, 1, sizeof(buf), fd);
         if (len != sizeof(buf))
             return -1;
-        ret = lame_decode1_headers(buf, len, pcm_l, pcm_r, mp3data);
+        ret = hip_decode1_headers(hip, buf, len, pcm_l, pcm_r, mp3data);
         if (-1 == ret)
             return -1;
     }
@@ -233,7 +235,7 @@ int lame_decode_fromfile(FILE * fd, short pcm_l[], short pcm_r[],
     unsigned char buf[1024];
 
     /* first see if we still have data buffered in the decoder: */
-    ret = lame_decode1_headers(buf, len, pcm_l, pcm_r, mp3data);
+    ret = hip_decode1_headers(hip, buf, len, pcm_l, pcm_r, mp3data);
     if (ret!=0) return ret;
 
 
@@ -242,12 +244,12 @@ int lame_decode_fromfile(FILE * fd, short pcm_l[], short pcm_r[],
         len = fread(buf, 1, 1024, fd);
         if (len == 0) {
 	    /* we are done reading the file, but check for buffered data */
-	    ret = lame_decode1_headers(buf, len, pcm_l, pcm_r, mp3data);
+	    ret = hip_decode1_headers(hip, buf, len, pcm_l, pcm_r, mp3data);
 	    if (ret<=0) return -1;  // done with file
 	    break;
 	}
 
-        ret = lame_decode1_headers(buf, len, pcm_l, pcm_r, mp3data);
+        ret = hip_decode1_headers(hip, buf, len, pcm_l, pcm_r, mp3data);
         if (ret == -1) return -1;
 	if (ret >0) break;
     }
@@ -275,7 +277,7 @@ int buf_probe_mp3(unsigned char *_buf, int len, ProbeTrackInfo *pcm)
     exit(1);
   }
 
-  lame_decode_init();
+  hip = hip_decode_init();
 
   buf=_buf;
 
@@ -293,7 +295,7 @@ int buf_probe_mp3(unsigned char *_buf, int len, ProbeTrackInfo *pcm)
 
   type = buf[1] & 0xff;
 
-  ret = lame_decode1_headers(buf, len, pcm_l, pcm_r, mp3data);
+  ret = hip_decode1_headers(hip, buf, len, pcm_l, pcm_r, mp3data);
 
   if (-1 == ret) {
     //tc_log_error(__FILE__, "failed to probe mp3 header (%d)", len);
