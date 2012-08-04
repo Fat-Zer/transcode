@@ -199,7 +199,7 @@ static intptr_t pv3_call(uint32_t fs, const void *handle, const void *func,...)
 {
     va_list args;
     intptr_t arg1, arg2, retval;
-    uint32_t spsave = 0;
+    static uint32_t spsave = 0;  // This can't be on the stack!
 
     va_start(args, func);
     arg1 = va_arg(args, intptr_t);
