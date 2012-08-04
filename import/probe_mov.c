@@ -32,6 +32,9 @@
 
 extern int binary_dump;
 
+/* libquicktime has bad style */
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+
 #include <quicktime.h>
 
 void probe_mov(info_t *ipipe)

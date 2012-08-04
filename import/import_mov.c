@@ -35,6 +35,9 @@ static int capability_flag = TC_CAP_PCM | TC_CAP_RGB | TC_CAP_YUV |
 #define MOD_PRE mov
 #include "import_def.h"
 
+/* libquicktime has bad style */
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
+
 #include <quicktime.h>
 #include <colormodels.h>
 #include <lqt.h>

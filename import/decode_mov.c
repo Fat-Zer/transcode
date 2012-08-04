@@ -32,6 +32,8 @@
 #include <stdint.h>
 
 #ifdef HAVE_LIBQUICKTIME
+/* libquicktime has bad style */
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
 #include <quicktime.h>
 #endif
 

@@ -45,8 +45,8 @@
 /*************************************************************************/
 
 typedef struct {
-    pp_mode_t *mode;
-    pp_context_t *context;
+    pp_mode *mode;
+    pp_context *context;
 
     int width, height;
 

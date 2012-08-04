@@ -289,7 +289,7 @@ MOD_open
         }
 
         for (i = 0; i < vff_data.dmx_context->nb_streams; i++) {
-            if (vff_data.dmx_context->streams[i]->codec->codec_type == CODEC_TYPE_VIDEO) {
+            if (vff_data.dmx_context->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
                 vff_data.streamid = i;
                 break;
             }

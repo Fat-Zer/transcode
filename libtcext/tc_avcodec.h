@@ -52,7 +52,6 @@ void tc_unlock_libavcodec(void);
 
 #define TC_INIT_LIBAVCODEC do { \
     tc_lock_libavcodec();   \
-    avcodec_init();         \
     avcodec_register_all(); \
     tc_unlock_libavcodec(); \
 } while (0)

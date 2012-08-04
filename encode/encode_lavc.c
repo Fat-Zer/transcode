@@ -919,7 +919,7 @@ static int tc_lavc_video_settings_from_vob(TCLavcPrivateData *pd, const vob_t *v
 {
     int ret = 0;
 
-    pd->ff_vcontext.codec_type = CODEC_TYPE_VIDEO;
+    pd->ff_vcontext.codec_type = AVMEDIA_TYPE_VIDEO;
     pd->ff_vcontext.bit_rate   = vob->divxbitrate * 1000;
     pd->ff_vcontext.width      = vob->ex_v_width;
     pd->ff_vcontext.height     = vob->ex_v_height;
@@ -985,7 +985,7 @@ static int tc_lavc_video_settings_from_vob(TCLavcPrivateData *pd, const vob_t *v
 
 static int tc_lavc_audio_settings_from_vob(TCLavcPrivateData *pd, const vob_t *vob)
 {
-    pd->ff_vcontext.codec_type  = CODEC_TYPE_AUDIO;
+    pd->ff_vcontext.codec_type  = AVMEDIA_TYPE_AUDIO;
     pd->ff_acontext.bit_rate    = vob->mp3bitrate * 1000;  // bitrate dest.
     pd->ff_acontext.channels    = vob->dm_chan;            // channels
     pd->ff_acontext.sample_rate = vob->a_rate;
@@ -1012,7 +1012,7 @@ static int tc_lavc_audio_settings_from_vob(TCLavcPrivateData *pd, const vob_t *v
 static void tc_lavc_config_defaults_video(TCLavcPrivateData *pd)
 {
     /* first of all reinitialize lavc data */
-    avcodec_get_context_defaults(&pd->ff_vcontext);
+    avcodec_get_context_defaults3(&pd->ff_vcontext, NULL);
 
     pd->confdata.thread_count    = 1;
 
@@ -1502,7 +1502,7 @@ static int tc_lavc_configure_video(TCModuleInstance *self,
     }
 
     TC_LOCK_LIBAVCODEC;
-    ret = avcodec_open(&pd->ff_vcontext, pd->ff_vcodec);
+    ret = avcodec_open2(&pd->ff_vcontext, pd->ff_vcodec, NULL);
     TC_UNLOCK_LIBAVCODEC;
 
     if (ret < 0) {
@@ -1562,7 +1562,7 @@ static int tc_lavc_configure_audio(TCModuleInstance *self,
     }
 
     TC_LOCK_LIBAVCODEC;
-    ret = avcodec_open(&pd->ff_acontext, pd->ff_acodec);
+    ret = avcodec_open2(&pd->ff_acontext, pd->ff_acodec, NULL);
     TC_UNLOCK_LIBAVCODEC;
 
     if (ret < 0) {
@@ -1570,7 +1570,7 @@ static int tc_lavc_configure_audio(TCModuleInstance *self,
         goto failed;
     }
  
-    avcodec_get_context_defaults(&pd->ff_acontext);
+    avcodec_get_context_defaults3(&pd->ff_acontext, NULL);
     return tc_lavc_audio_settings_from_vob(pd, vob);
 
 failed:

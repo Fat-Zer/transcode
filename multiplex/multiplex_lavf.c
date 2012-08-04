@@ -350,7 +350,7 @@ static int tc_lavf_init_fmt_from_user(TCLavfPrivateData *pd,
             return TC_ERROR;
         }
 
-        pd->mux_format = guess_format(fmt_tag, NULL, NULL);
+        pd->mux_format = av_guess_format(fmt_tag, NULL, NULL);
         if (!pd->mux_format) {
             tc_log_error(MOD_NAME, "format unsupported by libavformat: %s", fmt_name);
             return TC_ERROR;
@@ -370,7 +370,7 @@ static int tc_lavf_init_fmt_from_filename(TCLavfPrivateData *pd,
     }
 
     fname = (fname) ?fname :filename; /* fallback to given name */
-    fmt = guess_format(NULL, fname, NULL);
+    fmt = av_guess_format(NULL, fname, NULL);
     if (!fmt) {
         tc_log_error(MOD_NAME, "unable to detect format");
         return TC_ERROR;
@@ -400,7 +400,7 @@ static int tc_lavf_init_audio_stream(TCLavfPrivateData *pd,
         AVCodecContext *c = pd->astream->codec;
 
         c->codec_id     = pd->mux_format->audio_codec;
-        c->codec_type   = CODEC_TYPE_AUDIO;
+        c->codec_type   = AVMEDIA_TYPE_AUDIO;
         c->bit_rate     = vob->mp3bitrate * 1000;
         c->sample_rate  = vob->mp3frequency ?vob->mp3frequency :vob->a_rate;
         c->channels     = vob->dm_chan;
@@ -432,7 +432,7 @@ static int tc_lavf_init_video_stream(TCLavfPrivateData *pd,
     if (pd->vstream) {
         AVCodecContext *c = pd->vstream->codec;
         c->codec_id      = pd->mux_format->video_codec;
-        c->codec_type    = CODEC_TYPE_VIDEO;
+        c->codec_type    = AVMEDIA_TYPE_VIDEO;
         c->width         = vob->ex_v_width;
         c->height        = vob->ex_v_height;
         c->bit_rate      = vob->divxbitrate * 1000;
@@ -526,7 +526,7 @@ static int tc_lavf_write_video(TCModuleInstance *self,
 //    pkt.pts          = av_rescale_q(c->coded_frame->pts,
 //                                     c->time_base, st->time_base);
     if (frame->attributes & TC_FRAME_IS_KEYFRAME) {
-        pkt.flags |= PKT_FLAG_KEY;
+        pkt.flags |= AV_PKT_FLAG_KEY;
     }
 
     return tc_lavf_write(pd->mux_context, &pkt, &(pd->vframes), "video");
@@ -551,7 +551,7 @@ static int tc_lavf_write_audio(TCModuleInstance *self,
     pkt.pts          = pd->audio_pts;
 //    pkt.pts= av_rescale_q(c->coded_frame->pts,
 //                          c->time_base, st->time_base);
-    pkt.flags       |= PKT_FLAG_KEY; /* always */
+    pkt.flags       |= AV_PKT_FLAG_KEY; /* always */
 
     return tc_lavf_write(pd->mux_context, &pkt, &(pd->aframes), "audio");
 }
@@ -696,7 +696,7 @@ static int tc_lavf_configure(TCModuleInstance *self,
     /* some sane defaults */
     tc_lavf_init_defaults(pd);
 
-    pd->mux_context = av_alloc_format_context();
+    pd->mux_context = avformat_alloc_context();
     if (!pd->mux_context) {
         tc_log_error(MOD_NAME, "unable to allocate muxer context");
         return TC_ERROR;

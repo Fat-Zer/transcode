@@ -1409,8 +1409,10 @@ elif test x"$GCC" = x"yes" ; then
     if test x"$enable_warnings_as_errors" = x"yes" ; then
         dnl compiler warnings treated as errors
         dnl we don't care about pointer sign warnings, and empty format
-        dnl strings are occasionally useful, so disable those warnings
-        OPT_CFLAGS="-Werror -Wno-pointer-sign -Wno-format-zero-length $CFLAGS"
+        dnl strings and set-but-not-used variables are occasionally useful,
+        dnl so disable those warnings; also prevent reports of deprecation
+        dnl warnings because ffmpeg keeps changing its API
+        OPT_CFLAGS="-Werror -Wno-pointer-sign -Wno-format-zero-length -Wno-unused-but-set-variable -Wno-deprecated-declarations $CFLAGS"
         TC_TRY_CFLAGS([$OPT_CFLAGS -Wno-strict-prototypes -Wno-missing-prototypes],[CFLAGS=$OPT_CFLAGS])
     fi
     CFLAGS="$TMP_CFLAGS$CFLAGS"
