@@ -222,7 +222,6 @@ dnl
 AC_MSG_CHECKING([for build architecture])
 have_x86cpu=false
 have_x86_64cpu=false
-have_ppccpu=false
 case x"$host_cpu" in
   xi?86*|xk6*)
     have_x86cpu=true
@@ -234,17 +233,11 @@ case x"$host_cpu" in
     AC_MSG_RESULT([AMD64 architecture (AMD64)])
     AC_DEFINE([ARCH_X86_64], 1, [Define if your machine is AMD64 based])
     ;;
-  xpowerpc*)
-    have_ppccpu=true
-    AC_MSG_RESULT([Mac PPC architecture (PPC)])
-    AC_DEFINE([ARCH_PPC], 1, [Define if your machine is PPC based])
-    ;;
   *)
     ;;
 esac
 AM_CONDITIONAL(ARCH_X86, test x"$have_x86cpu" = x"true")
 AM_CONDITIONAL(ARCH_X86_64, test x"$have_x86_64cpu" = x"true")
-AM_CONDITIONAL(ARCH_PPC, test x"$have_ppccpu" = x"true")
 
 
 dnl x86 & x86_64 architectures
@@ -597,7 +590,7 @@ else
   dnl
   LIBAVCODEC_EXTRA_LIBS="$LIBAVCODEC_EXTRA_LIBS $($PKG_CONFIG --libs libavcodec)"
   TC_PKG_CHECK(libavcodec, optional, LIBAVCODEC, no, [libavcodec/avcodec.h],
-   avcodec, avcodec_thread_init, libavcodec, [http://www.ffmpeg.org/])
+   avcodec, avcodec_version, libavcodec, [http://www.ffmpeg.org/])
   if test x"$have_libavcodec" = x"yes" ; then
     save_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $LIBAVCODEC_CFLAGS"
