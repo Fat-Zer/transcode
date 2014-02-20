@@ -222,22 +222,36 @@ dnl
 AC_MSG_CHECKING([for build architecture])
 have_x86cpu=false
 have_x86_64cpu=false
-case x"$host_cpu" in
-  xi?86*|xk6*)
+have_unknown_cpu=true
+
+AC_TRY_CPP([
+#ifndef __i386__
+#error no
+#endif
+], [
     have_x86cpu=true
+    have_unknown_cpu=false
     AC_MSG_RESULT([Intel Pentium architecture (IA32)])
     AC_DEFINE([ARCH_X86], 1, [Define if your machine is x86 based])
-    ;;
-  xx86_64*|xamd64*)
+])
+
+AC_TRY_CPP([
+#ifndef __x86_64__
+#error no
+#endif
+], [
     have_x86_64cpu=true
+    have_unknown_cpu=false
     AC_MSG_RESULT([AMD64 architecture (AMD64)])
     AC_DEFINE([ARCH_X86_64], 1, [Define if your machine is AMD64 based])
-    ;;
-  *)
-    ;;
-esac
-AM_CONDITIONAL(ARCH_X86, test x"$have_x86cpu" = x"true")
-AM_CONDITIONAL(ARCH_X86_64, test x"$have_x86_64cpu" = x"true")
+])
+
+if test "$have_unknown_cpu" = "true"; then
+    AC_MSG_RESULT([non-x86 architecture])
+fi
+
+AM_CONDITIONAL(ARCH_X86, test "$have_x86cpu" = "true")
+AM_CONDITIONAL(ARCH_X86_64, test "$have_x86_64cpu" = "true")
 
 
 dnl x86 & x86_64 architectures
