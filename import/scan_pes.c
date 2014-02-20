@@ -1307,7 +1307,7 @@ void probe_pes(info_t *ipipe)
 	    if(end-buf>0) buf_probe_mp3(buf, end-buf, &ipipe->probe_info->track[num]);
 #else
 	    //all we know for now
-	    ipipe->probe_info->track[num].format=CODEC_MP3;
+	    ipipe->probe_info->track[num].format=TC_CODEC_MP3;
 	    ipipe->probe_info->track[num].tid=num;
 #endif
 
