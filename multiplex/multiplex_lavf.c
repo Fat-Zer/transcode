@@ -1,3 +1,8 @@
+//FIXME: find these
+#define url_fopen(...) (-1)
+#define url_fclose(...)
+#define av_set_parameters(...) (-1)
+#define av_write_header(...)
 /*
  *  multiplex_lavf.c -- multiplex A/V frames in a custom container
  *                      using libavformat.
@@ -746,10 +751,6 @@ static int tc_lavf_open(TCModuleInstance *self, const char *filename,
         tc_log_error(MOD_NAME, "unable to set output format parameters");
         tc_lavf_stop(self);
         return TC_ERROR;
-    }
-
-    if (verbose >= TC_DEBUG) {
-        dump_format(pd->mux_context, 0, vob->video_out_file, 1);
     }
 
     /* write the stream header, if any */

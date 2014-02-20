@@ -262,11 +262,10 @@ MOD_open
         /* special case in here, better to not use TC_INIT_LIBAVCODEC */
         TC_LOCK_LIBAVCODEC;
         av_register_all();
-        avcodec_init();
         avcodec_register_all();
 
-        ret = av_open_input_file(&(vff_data.dmx_context), vob->video_in_file,
-                                 NULL, 0, NULL);
+        ret = avformat_open_input(&(vff_data.dmx_context), vob->video_in_file,
+                                  NULL, NULL);
         TC_UNLOCK_LIBAVCODEC;
 
         if (ret != 0) {
@@ -282,10 +281,6 @@ MOD_open
                                    " (libavformat failure)",
                          vob->video_in_file);
             return TC_IMPORT_ERROR;
-        }
-
-        if (verbose >= TC_DEBUG) {
-            dump_format(vff_data.dmx_context, 0, vob->video_in_file, 0);
         }
 
         for (i = 0; i < vff_data.dmx_context->nb_streams; i++) {
@@ -329,11 +324,6 @@ MOD_open
         if (vob->decolor) {
             vff_data.dec_context->flags |= CODEC_FLAG_GRAY;
         }
-#if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
-        vff_data.dec_context->error_resilience  = FF_ER_COMPLIANT;
-#else
-        vff_data.dec_context->error_recognition = FF_ER_COMPLIANT;
-#endif
         vff_data.dec_context->error_concealment = FF_EC_GUESS_MVS|FF_EC_DEBLOCK;
         vff_data.dec_context->workaround_bugs = workarounds;
 

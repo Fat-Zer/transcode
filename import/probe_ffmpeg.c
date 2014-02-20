@@ -98,12 +98,12 @@ void probe_ffmpeg(info_t *ipipe)
 
     TC_LOCK_LIBAVCODEC;
     av_register_all();
-    avcodec_init();
     avcodec_register_all();
+
+    ret = avformat_open_input(&lavf_dmx_context, ipipe->name,
+                              NULL, NULL);
     TC_UNLOCK_LIBAVCODEC;
 
-    ret = av_open_input_file(&lavf_dmx_context, ipipe->name,
-                             NULL, 0, NULL);
     if (ret != 0) {
         tc_log_error(__FILE__, "unable to open '%s'"
                                " (libavformat failure)",

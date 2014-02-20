@@ -114,7 +114,10 @@ uint64_t tc_timer_elapsed(TCTimer *timer)
     return timer->elapsed(timer);
 }
 
-int tc_timer_sleep(TCTimer *timer, uint64_t amount);
+int tc_timer_sleep(TCTimer *timer, uint64_t amount)
+{
+    return timer->sleep(timer, amount);
+}
 
 
 int tc_timer_init_soft(TCTimer *timer, uint16_t frequency)

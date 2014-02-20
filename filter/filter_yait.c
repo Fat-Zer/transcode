@@ -525,7 +525,7 @@ static int yait_ops(vframe_list_t * ptr)
 {
     char buf[256];
     uint8_t *v;
-    int mode, op;
+    int mode = 3, op;
     int w, h;
 
     v = ptr->video_buf;
