@@ -328,7 +328,7 @@ MOD_open
         vff_data.dec_context->workaround_bugs = workarounds;
 
         TC_LOCK_LIBAVCODEC;
-        ret = avcodec_open(vff_data.dec_context, vff_data.dec_codec);
+        ret = avcodec_open2(vff_data.dec_context, vff_data.dec_codec, NULL);
         TC_UNLOCK_LIBAVCODEC;
         if (ret < 0) {
             tc_log_error(MOD_NAME, "Could not initialize the '%s' codec.",

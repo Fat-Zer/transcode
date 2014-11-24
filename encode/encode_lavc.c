@@ -191,25 +191,25 @@ static const TCCodecID tc_lavc_codecs_audio_out[] = {
     TC_CODEC_ERROR
 };
 
-static const enum CodecID tc_lavc_int_video_codecs[] = {
-    CODEC_ID_MPEG1VIDEO, CODEC_ID_MPEG2VIDEO, CODEC_ID_MPEG4,
-    CODEC_ID_H263I, CODEC_ID_H263P,
-    CODEC_ID_H264,
-    CODEC_ID_WMV1, CODEC_ID_WMV2,
-    CODEC_ID_RV10,
-    CODEC_ID_HUFFYUV, CODEC_ID_FFV1,
-    CODEC_ID_DVVIDEO,
-    CODEC_ID_MJPEG, CODEC_ID_LJPEG,
-    CODEC_ID_MSMPEG4V2, CODEC_ID_MSMPEG4V3,
+static const enum AVCodecID tc_lavc_int_video_codecs[] = {
+    AV_CODEC_ID_MPEG1VIDEO, AV_CODEC_ID_MPEG2VIDEO, AV_CODEC_ID_MPEG4,
+    AV_CODEC_ID_H263I, AV_CODEC_ID_H263P,
+    AV_CODEC_ID_H264,
+    AV_CODEC_ID_WMV1, AV_CODEC_ID_WMV2,
+    AV_CODEC_ID_RV10,
+    AV_CODEC_ID_HUFFYUV, AV_CODEC_ID_FFV1,
+    AV_CODEC_ID_DVVIDEO,
+    AV_CODEC_ID_MJPEG, AV_CODEC_ID_LJPEG,
+    AV_CODEC_ID_MSMPEG4V2, AV_CODEC_ID_MSMPEG4V3,
 
-    CODEC_ID_NONE
+    AV_CODEC_ID_NONE
 };
 
-static const enum CodecID tc_lavc_int_audio_codecs[] = {
-    CODEC_ID_MP2,
-    CODEC_ID_AC3,
+static const enum AVCodecID tc_lavc_int_audio_codecs[] = {
+    AV_CODEC_ID_MP2,
+    AV_CODEC_ID_AC3,
 
-    CODEC_ID_NONE
+    AV_CODEC_ID_NONE
 };
 
 
@@ -1050,8 +1050,6 @@ static void tc_lavc_config_defaults_video(TCLavcPrivateData *pd)
     pd->ff_vcontext.mpeg_quant              = 0;
     pd->ff_vcontext.rc_initial_cplx         = 0.0;
     pd->ff_vcontext.rc_qsquish              = 1.0;
-    pd->ff_vcontext.luma_elim_threshold     = 0;
-    pd->ff_vcontext.chroma_elim_threshold   = 0;
     pd->ff_vcontext.strict_std_compliance   = 0;
     pd->ff_vcontext.dct_algo                = FF_DCT_AUTO;
     pd->ff_vcontext.idct_algo               = FF_IDCT_AUTO;
@@ -1075,7 +1073,6 @@ static void tc_lavc_config_defaults_video(TCLavcPrivateData *pd)
     pd->ff_vcontext.intra_quant_bias        = FF_DEFAULT_QUANT_BIAS;
     pd->ff_vcontext.inter_quant_bias        = FF_DEFAULT_QUANT_BIAS;
     pd->ff_vcontext.noise_reduction         = 0;
-    pd->ff_vcontext.quantizer_noise_shaping = 0;
     pd->ff_vcontext.flags                   = 0;
 }
 
@@ -1221,8 +1218,6 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         { "vrc_init_cplx", PCTX(rc_initial_cplx), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 9999999.0 },
         //  { "vrc_init_occupancy",   }, // not yet supported
         { "vqsquish", PCTX(rc_qsquish), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 99.0 },
-        { "vlelim", PCTX(luma_elim_threshold), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
-        { "vcelim", PCTX(chroma_elim_threshold), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
         { "vstrict", PCTX(strict_std_compliance), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
         { "vpsize", PCTX(rtp_payload_size), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 100000000 },
         { "dct", PCTX(dct_algo), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 10 },
@@ -1248,12 +1243,10 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         { "ibias", PCTX(intra_quant_bias), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -512, 512 },
         { "pbias", PCTX(inter_quant_bias), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -512, 512 },
         { "nr", PCTX(noise_reduction), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 1000000},
-        { "qns", PCTX(quantizer_noise_shaping), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 3 },
         { "inter_matrix_file", inter_matrix_file, TCCONF_TYPE_STRING, 0, 0, 0 },
         { "intra_matrix_file", intra_matrix_file, TCCONF_TYPE_STRING, 0, 0, 0 },
     
         { "mv0", PAUX(flags.mv0), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_MV0 },
-        { "cbp", PAUX(flags.cbp), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_CBP_RD },
         { "qpel", PAUX(flags.qpel), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_QPEL },
         //{ "alt", PAUX(flags.alt), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_ALT_SCAN },
         { "ilme", PAUX(flags.ilme), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_INTERLACED_ME },

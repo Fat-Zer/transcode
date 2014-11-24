@@ -165,7 +165,7 @@ void decode_lavc(decode_t *decode)
 
   // Set these to the expected values so that ffmpeg's decoder can
   // properly detect interlaced input.
-  lavc_dec_context = avcodec_alloc_context();
+  lavc_dec_context = avcodec_alloc_context3(lavc_dec_codec);
   if (lavc_dec_context == NULL) {
       tc_log_error(__FILE__, "Could not allocate enough memory.");
       goto decoder_error;
@@ -176,7 +176,7 @@ void decode_lavc(decode_t *decode)
   lavc_dec_context->error_concealment = 3;
   lavc_dec_context->workaround_bugs = FF_BUG_AUTODETECT;
 
-  if (avcodec_open(lavc_dec_context, lavc_dec_codec) < 0) {
+  if (avcodec_open2(lavc_dec_context, lavc_dec_codec, NULL) < 0) {
       tc_log_error(__FILE__, "Could not initialize the '%s' codec.",
 		   codec->name);
       goto decoder_error;
