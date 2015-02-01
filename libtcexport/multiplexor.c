@@ -410,9 +410,9 @@ static int dual_write(TCMultiplexor *mux, int can_rotate,
 
     need_rotate = TC_FALSE;
     if (aframe) {
-        aret = tc_module_write_audio(mux->mux_main, aframe);
+        aret = tc_module_write_audio(mux->mux_aux, aframe);
         if (aret >= 0) {
-            need_rotate = tc_rotate_needed(mux->rotor, 1, aret);
+            need_rotate = tc_rotate_needed(mux->rotor_aux, 1, aret);
             mux->processed |= TC_AUDIO;
         }
     } else {
