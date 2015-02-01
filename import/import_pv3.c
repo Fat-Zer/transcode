@@ -294,10 +294,10 @@ static int pv3_load_dll(PrivateData *pd)
  * pv3_decode_frame:  Decode a frame.
  *
  * Parameters:
- *            pd: PrivateData structure.
- *      in_frame: Input (encoded) frame.
- *     out_video: Output video frame buffer (YUY2).
- *     out_audio: Output audio frame buffer.
+ *             pd: PrivateData structure.
+ *       in_frame: Input (encoded) frame.
+ *      out_video: Output video frame buffer (YUY2).
+ *     out_aframe: Output audio frame buffer.
  * Return value:
  *     Nonzero on success, zero on failure.
  * Preconditions:
@@ -310,7 +310,7 @@ static int pv3_load_dll(PrivateData *pd)
  */
 
 static int pv3_decode_frame(PrivateData *pd, uint8_t *in_frame,
-                            void *out_video, void *out_audio)
+                            void *out_video, aframe_list_t *out_aframe)
 {
     if (!pd->codec_dll) {
         if (!pv3_load_dll(pd))
@@ -369,13 +369,21 @@ static int pv3_decode_frame(PrivateData *pd, uint8_t *in_frame,
         }
     }
 
-    if (out_audio) {
+    if (out_aframe) {
         int nsamples, i;
-        uint16_t *dest = (uint16_t *)out_audio;
+        uint16_t *dest = (uint16_t *)out_aframe->audio_buf;
 
         if (pd->pv3_version == 1) {
+            out_aframe->a_rate = in_frame[12] << 24
+                               | in_frame[13] << 16
+                               | in_frame[14] <<  8
+                               | in_frame[15];
             nsamples = in_frame[24]<<8 | in_frame[25];
         } else {  // PV3 version 2
+            out_aframe->a_rate = in_frame[ 8] << 24
+                               | in_frame[ 9] << 16
+                               | in_frame[10] <<  8
+                               | in_frame[11];
             nsamples = in_frame[6]<<8 | in_frame[7];
         }
         if (nsamples > 0x800) {
@@ -383,6 +391,9 @@ static int pv3_decode_frame(PrivateData *pd, uint8_t *in_frame,
                         " truncating to %d", nsamples, pd->framenum, 0x800);
             nsamples = 0x800;
         }
+        out_aframe->a_bits = 16;
+        out_aframe->a_chan = 2;
+        out_aframe->audio_size = nsamples * 4;
         for (i = 0; i < nsamples*2; i++) {
             dest[i] = in_frame[0x200+i*2]<<8 | in_frame[0x201+i*2];
         }
@@ -683,22 +694,7 @@ static int pv3_demultiplex(TCModuleInstance *self,
     if (aframe) {
         /* The full frame won't fit in an audio buffer, so just decode it
          * here and pass it on as PCM. */
-        if (pd->pv3_version == 1) {
-            aframe->a_rate = pd->framebuf[12] << 24
-                           | pd->framebuf[13] << 16
-                           | pd->framebuf[14] <<  8
-                           | pd->framebuf[15];
-            aframe->audio_size = (pd->framebuf[24]<<8 | pd->framebuf[25]) * 4;
-        } else {  // PV3 version 2
-            aframe->a_rate = pd->framebuf[ 8] << 24
-                           | pd->framebuf[ 9] << 16
-                           | pd->framebuf[10] <<  8
-                           | pd->framebuf[11];
-            aframe->audio_size = (pd->framebuf[6]<<8 | pd->framebuf[7]) * 4;
-        }
-        aframe->a_bits = 16;
-        aframe->a_chan = 2;
-        if (!pv3_decode_frame(pd, pd->framebuf, NULL, aframe->audio_buf)) {
+        if (!pv3_decode_frame(pd, pd->framebuf, NULL, aframe)) {
             tc_log_warn(MOD_NAME,
                         "demultiplex: decode audio failed, inserting silence");
             memset(aframe->audio_buf, 0, aframe->audio_size);
