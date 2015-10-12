@@ -275,7 +275,7 @@ MOD_open
             return TC_IMPORT_ERROR;
         }
 
-        ret = av_find_stream_info(vff_data.dmx_context);
+        ret = avformat_find_stream_info(vff_data.dmx_context, NULL);
         if (ret < 0) {
             tc_log_error(MOD_NAME, "unable to fetch informations from '%s'"
                                    " (libavformat failure)",
@@ -474,7 +474,7 @@ MOD_close
         }
 
         if (vff_data.dmx_context != NULL) {
-            av_close_input_file(vff_data.dmx_context);
+            avformat_close_input(&vff_data.dmx_context);
             vff_data.dmx_context = NULL;
         }
 

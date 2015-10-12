@@ -400,7 +400,7 @@ static int tc_lavf_init_audio_stream(TCLavfPrivateData *pd,
 {
     int ret = TC_ERROR;
 
-    pd->astream = av_new_stream(pd->mux_context, pd->nstreams);
+    pd->astream = avformat_new_stream(pd->mux_context, NULL);
     if (pd->astream) {
         AVCodecContext *c = pd->astream->codec;
 
@@ -433,7 +433,7 @@ static int tc_lavf_init_video_stream(TCLavfPrivateData *pd,
         return TC_ERROR;
     }
 
-    pd->vstream = av_new_stream(pd->mux_context, pd->nstreams);
+    pd->vstream = avformat_new_stream(pd->mux_context, NULL);
     if (pd->vstream) {
         AVCodecContext *c = pd->vstream->codec;
         c->codec_id      = pd->mux_format->video_codec;
