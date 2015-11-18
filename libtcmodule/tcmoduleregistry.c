@@ -307,7 +307,7 @@ TCModule tc_new_module_for_format(TCRegistry registry,
     TCModule mod = NULL;
 
     RETURN_IF_INVALID_STRING(modclass, "empty module class", NULL);
-    RETURN_IF_INVALID_STRING(modclass, "empty format name", NULL);
+    RETURN_IF_INVALID_STRING(format, "empty format name", NULL);
     RETURN_IF_NULL(registry, "invalid registry reference", NULL);
 
     fm = fmt_mods_get_for_format(registry, format);
