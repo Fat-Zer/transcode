@@ -51,8 +51,8 @@ static void translate_info(const AVFormatContext *ctx, ProbeInfo *info)
             info->bitrate = st->codec->bit_rate / 1000;
             info->width = st->codec->width;
             info->height = st->codec->height;
-            if (st->r_frame_rate.num > 0 && st->r_frame_rate.den > 0) {
-                info->fps = av_q2d(st->r_frame_rate);
+            if (st->avg_frame_rate.num > 0 && st->avg_frame_rate.den > 0) {
+                info->fps = av_q2d(st->avg_frame_rate);
             } else {
                 /* watch out here */
                 info->fps = 1.0/av_q2d(st->codec->time_base);

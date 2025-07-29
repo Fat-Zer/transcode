@@ -37,6 +37,7 @@
 #include "libtc/optstr.h"
 #include "libtc/tcavcodec.h"
 #include "libtc/tcmodule-plugin.h"
+#include <libavresample/avresample.h>
 
 
 typedef struct {
@@ -45,7 +46,7 @@ typedef struct {
 
     int bytes_per_sample;
 
-    ReSampleContext *resample_ctx;
+    AVAudioResampleContext *resample_ctx;
 } ResamplePrivateData;
 
 static const char resample_help[] = ""
