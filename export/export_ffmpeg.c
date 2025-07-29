@@ -1199,7 +1199,7 @@ MOD_init
     lavc_venc_context->me_method = ME_ZERO + lavc_param_vme;
 
 	/* FIXME: transcode itself contains "broken ffmpeg default settings", thus we need to override them! */
-	if (lavc_param_video_preset) {
+	if (lavc_param_video_preset && strcmp(lavc_param_video_preset, "none")) {
 		avcodec_opts[AVMEDIA_TYPE_VIDEO] = lavc_venc_context;
 		video_codec_name = av_strdup(ffmpeg_codec_name(codec->name));
 

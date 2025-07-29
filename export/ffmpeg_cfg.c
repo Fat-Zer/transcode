@@ -124,7 +124,7 @@ int lavc_param_gmc = 0;
 //int lavc_param_atag = 0;
 //int lavc_param_abitrate = 224;
 
-char *lavc_param_video_preset = "medium";
+char *lavc_param_video_preset = "none";
 char *lavc_param_ffmpeg_datadir = "/usr/share/ffmpeg";
 
 TCConfigEntry lavcopts_conf[]={
