@@ -34,8 +34,6 @@ int lavc_param_vme = 4;
 //int lavc_param_vqscale = 0;
 //int lavc_param_vqmin = 2;
 //int lavc_param_vqmax = 31;
-int lavc_param_mb_qmin = 2;
-int lavc_param_mb_qmax = 31;
 int lavc_param_lmin = 2;
 int lavc_param_lmax = 31;
 int lavc_param_vqdiff = 3;
@@ -143,8 +141,6 @@ TCConfigEntry lavcopts_conf[]={
 //    {"vqscale", &lavc_param_vqscale, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 31},
 //    {"vqmin", &lavc_param_vqmin, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 31},
 //    {"vqmax", &lavc_param_vqmax, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 31},
-    {"mbqmin", &lavc_param_mb_qmin, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 31},
-    {"mbqmax", &lavc_param_mb_qmax, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 31},
     {"lmin", &lavc_param_lmin, TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.01, 255.0},
     {"lmax", &lavc_param_lmax, TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.01, 255.0},
     {"vqdiff", &lavc_param_vqdiff, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 31},

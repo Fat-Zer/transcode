@@ -955,8 +955,6 @@ static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
     /* 
      * context *transcode* (not libavcodec) defaults
      */
-    pd->ff_vcontext.mb_qmin                 = 2;
-    pd->ff_vcontext.mb_qmax                 = 31;
     pd->ff_vcontext.max_qdiff               = 3;
     pd->ff_vcontext.max_b_frames            = 0;
     pd->ff_vcontext.me_range                = 0;
@@ -1116,8 +1114,6 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         //  handled by transcode core
         //  { "vqmax", PCTX(qmax), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 60 },
         //  handled by transcode core
-        { "mbqmin", PCTX(mb_qmin), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 60 },
-        { "mbqmax", PCTX(mb_qmax), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 60 },
         { "lmin", PAUX(lmin), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.01, 255.0 },
         { "lmax", PAUX(lmax), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.01, 255.0 },
         { "vqdiff", PCTX(max_qdiff), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 31 },
