@@ -109,7 +109,7 @@ void probe_ffmpeg(info_t *ipipe)
         return;
     }
 
-    ret = av_find_stream_info(lavf_dmx_context);
+    ret = avformat_find_stream_info(lavf_dmx_context, NULL);
     if (ret < 0) {
         tc_log_error(__FILE__, "unable to fetch informations from '%s'"
                                " (libavformat failure)",
