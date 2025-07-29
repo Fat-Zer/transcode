@@ -122,7 +122,7 @@ static uint8_t             *img_buffer = NULL;
 static AVFrame             *lavc_convert_frame = NULL;
 
 static AVCodec             *lavc_venc_codec = NULL;
-static AVDictionary        **lavc_venc_opts = NULL;
+static AVDictionary        *lavc_venc_opts = NULL;
 static AVFrame             *lavc_venc_frame = NULL;
 static AVCodecContext      *lavc_venc_context;
 static avi_t               *avifile = NULL;
@@ -486,7 +486,7 @@ MOD_init
 		            codec->name, codec->fourCC, codec->comments);
     }
 
-    lavc_venc_context = avcodec_alloc_context();
+    lavc_venc_context = avcodec_alloc_context3(lavc_venc_codec);
     lavc_venc_frame   = avcodec_alloc_frame();
 
     lavc_convert_frame= avcodec_alloc_frame();
@@ -838,8 +838,13 @@ MOD_init
     lavc_venc_context->rc_strategy        = lavc_param_vrc_strategy;
     lavc_venc_context->b_frame_strategy   = lavc_param_vb_strategy;
     lavc_venc_context->b_quant_offset     = lavc_param_vb_qoffset;
-    lavc_venc_context->luma_elim_threshold= lavc_param_luma_elim_threshold;
-    lavc_venc_context->chroma_elim_threshold= lavc_param_chroma_elim_threshold;
+
+    char buf[1024];
+#define set_dict_opt(val, opt) \
+	snprintf(buf, sizeof(buf), "%i", val); \
+	av_dict_set(&lavc_venc_opts, opt, buf, 0)
+    set_dict_opt(lavc_param_luma_elim_threshold, "luma_elim_threshold");
+    set_dict_opt(lavc_param_chroma_elim_threshold, "chroma_elim_threshold");
     lavc_venc_context->rtp_payload_size   = lavc_param_packet_size;
 #if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)   
     if (lavc_param_packet_size)
@@ -870,7 +875,7 @@ MOD_init
     lavc_venc_context->context_model      = lavc_param_context;
     lavc_venc_context->scenechange_threshold= lavc_param_sc_threshold;
     lavc_venc_context->noise_reduction    = lavc_param_noise_reduction;
-    lavc_venc_context->inter_threshold    = lavc_param_inter_threshold;
+    set_dict_opt(lavc_param_inter_threshold, "inter_threshold");
     lavc_venc_context->intra_dc_precision = lavc_param_intra_dc_precision;
     lavc_venc_context->skip_top           = lavc_param_skip_top;
     lavc_venc_context->skip_bottom        = lavc_param_skip_bottom;
@@ -1066,9 +1071,11 @@ MOD_init
     lavc_venc_context->flags |= lavc_param_trunc;
     lavc_venc_context->flags |= lavc_param_aic;
     lavc_venc_context->flags |= lavc_param_v4mv;
-    lavc_venc_context->flags |= lavc_param_cbp;
+    if(lavc_param_cbp)
+    	av_dict_set(&lavc_venc_opts, "mpv_flags", "+cbp_rd", 0);
     lavc_venc_context->flags |= lavc_param_mv0;
-    lavc_venc_context->flags |= lavc_param_qp_rd;
+    if(lavc_param_qp_rd)
+    	av_dict_set(&lavc_venc_opts, "mpv_flags", "+qp_rd", 0);
     lavc_venc_context->flags |= lavc_param_ilme;
 #if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)   
     lavc_venc_context->flags |= lavc_param_trell;
@@ -1238,29 +1245,29 @@ MOD_init
 	}
 
     if (lavc_param_scan_offset) {
-      av_dict_set(lavc_venc_opts, "scan_offset", "1", 0);
+      av_dict_set(&lavc_venc_opts, "scan_offset", "1", 0);
     }
 
     if (lavc_param_ss) {
-      av_dict_set(lavc_venc_opts, "structured_slices", "1", 0);
+      av_dict_set(&lavc_venc_opts, "structured_slices", "1", 0);
     }
 
     if (lavc_param_alt) {
-      av_dict_set(lavc_venc_opts, "alternate_scan", "1", 0);
+      av_dict_set(&lavc_venc_opts, "alternate_scan", "1", 0);
     }
 
     if (lavc_param_umv) {
-      av_dict_set(lavc_venc_opts, "umv", "1", 0);
+      av_dict_set(&lavc_venc_opts, "umv", "1", 0);
     }
 
     if (lavc_param_data_partitioning) {
-      av_dict_set(lavc_venc_opts, "vdpart", "1", 0);
+      av_dict_set(&lavc_venc_opts, "vdpart", "1", 0);
     }
 
     //-- open codec --
     //----------------
     TC_LOCK_LIBAVCODEC;
-    ret = avcodec_open2(lavc_venc_context, lavc_venc_codec, lavc_venc_opts);
+    ret = avcodec_open2(lavc_venc_context, lavc_venc_codec, &lavc_venc_opts);
     TC_UNLOCK_LIBAVCODEC;
     if (ret < 0) {
       tc_log_warn(MOD_NAME, "could not open FFMPEG codec");

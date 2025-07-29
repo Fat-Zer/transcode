@@ -74,6 +74,9 @@ struct tclavcconfigdata_ {
     int lmin;
     int lmax;
     int me_method;
+    int luma_elim_threshold;
+    int chroma_elim_threshold;
+    int quantizer_noise_shaping;
 
     /* same as above for flags */
     struct {
@@ -114,7 +117,7 @@ struct tclavcprivatedata_ {
 
     AVFrame ff_venc_frame;
     AVCodecContext ff_vcontext;
-    AVDictionary ** ff_opts;
+    AVDictionary * ff_opts;
 
     AVCodec *ff_vcodec;
 
@@ -165,6 +168,7 @@ static const TCCodecID tc_lavc_codecs_out[] = {
     TC_CODEC_ERROR
 };
 
+#if LIBAVCODEC_VERSION_MAJOR < 55
 static const enum CodecID tc_lavc_internal_codecs[] = {
     CODEC_ID_MPEG1VIDEO, CODEC_ID_MPEG2VIDEO, CODEC_ID_MPEG4,
     CODEC_ID_H263I, CODEC_ID_H263P,
@@ -177,6 +181,20 @@ static const enum CodecID tc_lavc_internal_codecs[] = {
     CODEC_ID_MSMPEG4V2, CODEC_ID_MSMPEG4V3,
     CODEC_ID_NONE
 };
+#else
+static const enum AVCodecID tc_lavc_internal_codecs[] = {
+    AV_CODEC_ID_MPEG1VIDEO, AV_CODEC_ID_MPEG2VIDEO, AV_CODEC_ID_MPEG4,
+    AV_CODEC_ID_H263I, AV_CODEC_ID_H263P,
+    AV_CODEC_ID_H264,
+    AV_CODEC_ID_WMV1, AV_CODEC_ID_WMV2,
+    AV_CODEC_ID_RV10,
+    AV_CODEC_ID_HUFFYUV, AV_CODEC_ID_FFV1,
+    AV_CODEC_ID_DVVIDEO,
+    AV_CODEC_ID_MJPEG, AV_CODEC_ID_LJPEG,
+    AV_CODEC_ID_MSMPEG4V2, AV_CODEC_ID_MSMPEG4V3,
+    AV_CODEC_ID_NONE
+};
+#endif
 
 static const TCFormatID tc_lavc_formats[] = { TC_FORMAT_ERROR };
 
@@ -938,7 +956,11 @@ static int tc_lavc_settings_from_vob(TCLavcPrivateData *pd, const vob_t *vob)
 static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
 {
     /* first of all reinitialize lavc data */
+#if LIBAVCODEC_VERSION_MAJOR < 55
     avcodec_get_context_defaults(&pd->ff_vcontext);
+#else
+    avcodec_get_context_defaults3(&pd->ff_vcontext, NULL);
+#endif
 
     pd->confdata.thread_count = 1;
 
@@ -976,8 +998,8 @@ static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
     pd->ff_vcontext.mpeg_quant              = 0;
     pd->ff_vcontext.rc_initial_cplx         = 0.0;
     pd->ff_vcontext.rc_qsquish              = 1.0;
-    pd->ff_vcontext.luma_elim_threshold     = 0;
-    pd->ff_vcontext.chroma_elim_threshold   = 0;
+    pd->confdata.luma_elim_threshold     = 0;
+    pd->confdata.chroma_elim_threshold   = 0;
     pd->ff_vcontext.strict_std_compliance   = 0;
     pd->ff_vcontext.dct_algo                = FF_DCT_AUTO;
     pd->ff_vcontext.idct_algo               = FF_IDCT_AUTO;
@@ -1001,7 +1023,7 @@ static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
     pd->ff_vcontext.intra_quant_bias        = FF_DEFAULT_QUANT_BIAS;
     pd->ff_vcontext.inter_quant_bias        = FF_DEFAULT_QUANT_BIAS;
     pd->ff_vcontext.noise_reduction         = 0;
-    pd->ff_vcontext.quantizer_noise_shaping = 0;
+    pd->confdata.quantizer_noise_shaping = 0;
     pd->ff_vcontext.flags                   = 0;
 }
 
@@ -1033,7 +1055,6 @@ static void tc_lavc_dispatch_settings(TCLavcPrivateData *pd)
 
     pd->ff_vcontext.flags = 0;
     SET_FLAG(pd, mv0);
-    SET_FLAG(pd, cbp);
     SET_FLAG(pd, qpel);
     SET_FLAG(pd, naq);
     SET_FLAG(pd, ilme);
@@ -1060,17 +1081,29 @@ static void tc_lavc_dispatch_settings(TCLavcPrivateData *pd)
         pd->ff_vcontext.flags |= CODEC_FLAG_INTERLACED_ME;
     }
     if (pd->confdata.flags.alt) {
-        av_dict_set(pd->ff_opts, "alternate_scan", "1", 0);
+        av_dict_set(&(pd->ff_opts), "alternate_scan", "1", 0);
     }
     if (pd->confdata.flags.vdpart) {
-        av_dict_set(pd->ff_opts, "data_partitioning", "1", 0);
+        av_dict_set(&(pd->ff_opts), "data_partitioning", "1", 0);
     }
     if (pd->confdata.flags.umv) {
-        av_dict_set(pd->ff_opts, "umv", "1", 0);
+        av_dict_set(&(pd->ff_opts), "umv", "1", 0);
     }
     if (pd->confdata.flags.aiv) {
-        av_dict_set(pd->ff_opts, "aiv", "1", 0);
+        av_dict_set(&(pd->ff_opts), "aiv", "1", 0);
     }
+    if (pd->confdata.flags.cbp) {
+    	av_dict_set(&(pd->ff_opts), "mpv_flags", "+cbp_rd", 0);
+    }
+
+    char buf[1024];
+#define set_dict_opt(val, opt) \
+    snprintf(buf, sizeof(buf), "%i", pd->confdata.val);\
+    av_dict_set(&(pd->ff_opts), opt, buf, 0)
+
+    set_dict_opt(luma_elim_threshold, "luma_elim_threshold");
+    set_dict_opt(chroma_elim_threshold, "chroma_elim_threshold");
+    set_dict_opt(quantizer_noise_shaping, "quantizer_noise_shaping");
 }
 
 #undef SET_FLAG
@@ -1155,8 +1188,8 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         { "vrc_init_cplx", PCTX(rc_initial_cplx), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 9999999.0 },
         //  { "vrc_init_occupancy",   }, // not yet supported
         { "vqsquish", PCTX(rc_qsquish), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 99.0 },
-        { "vlelim", PCTX(luma_elim_threshold), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
-        { "vcelim", PCTX(chroma_elim_threshold), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
+        { "vlelim", PAUX(luma_elim_threshold), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
+        { "vcelim", PAUX(chroma_elim_threshold), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
         { "vstrict", PCTX(strict_std_compliance), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
         { "vpsize", PCTX(rtp_payload_size), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 100000000 },
         { "dct", PCTX(dct_algo), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 10 },
@@ -1182,12 +1215,12 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         { "ibias", PCTX(intra_quant_bias), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -512, 512 },
         { "pbias", PCTX(inter_quant_bias), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -512, 512 },
         { "nr", PCTX(noise_reduction), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 1000000},
-        { "qns", PCTX(quantizer_noise_shaping), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 3 },
+        { "qns", PAUX(quantizer_noise_shaping), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 3 },
         { "inter_matrix_file", inter_matrix_file, TCCONF_TYPE_STRING, 0, 0, 0 },
         { "intra_matrix_file", intra_matrix_file, TCCONF_TYPE_STRING, 0, 0, 0 },
     
         { "mv0", PAUX(flags.mv0), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_MV0 },
-        { "cbp", PAUX(flags.cbp), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_CBP_RD },
+        { "cbp", PAUX(flags.cbp), TCCONF_TYPE_FLAG, 0, 0, 1 },
         { "qpel", PAUX(flags.qpel), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_QPEL },
         { "alt", PAUX(flags.alt), TCCONF_TYPE_FLAG, 0, 0, 1 },
         { "ilme", PAUX(flags.ilme), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_INTERLACED_ME },
@@ -1350,6 +1383,8 @@ static int tc_lavc_configure(TCModuleInstance *self,
 
     pd = self->userdata;
 
+    pd->ff_opts = NULL;
+
     pd->flush_flag = vob->encoder_flush;
     
     /* FIXME: move into core? */
@@ -1402,7 +1437,7 @@ static int tc_lavc_configure(TCModuleInstance *self,
     }
 
     TC_LOCK_LIBAVCODEC;
-    ret = avcodec_open2(&pd->ff_vcontext, pd->ff_vcodec, pd->ff_opts);
+    ret = avcodec_open2(&pd->ff_vcontext, pd->ff_vcodec, &(pd->ff_opts));
     TC_UNLOCK_LIBAVCODEC;
 
     if (ret < 0) {

@@ -326,10 +326,18 @@ static int tc_audio_init_ffmpeg(vob_t *vob, int o_codec)
 
     switch (o_codec) {
       case   0x50:
+#if LIBAVCODEC_VERSION_MAJOR < 55
         codeid = CODEC_ID_MP2;
+#else
+        codeid = AV_CODEC_ID_MP2;
+#endif
         break;
       case 0x2000:
+#if LIBAVCODEC_VERSION_MAJOR < 55
         codeid = CODEC_ID_AC3;
+#else
+        codeid = AV_CODEC_ID_AC3;
+#endif
         break;
       default:
         tc_warn("cannot init ffmpeg with %x", o_codec);
@@ -346,7 +354,7 @@ static int tc_audio_init_ffmpeg(vob_t *vob, int o_codec)
 
     //-- set parameters (bitrate, channels and sample-rate) --
     //--------------------------------------------------------
-    avcodec_get_context_defaults(&mpa_ctx);
+    avcodec_get_context_defaults3(&mpa_ctx, mpa_codec);
 #if LIBAVCODEC_VERSION_MAJOR < 53
     mpa_ctx.codec_type  = CODEC_TYPE_AUDIO;
 #else
@@ -359,11 +367,16 @@ static int tc_audio_init_ffmpeg(vob_t *vob, int o_codec)
     //-- open codec --
     //----------------
     TC_LOCK_LIBAVCODEC;
-    ret = avcodec_open(&mpa_ctx, mpa_codec);
+    ret = avcodec_open2(&mpa_ctx, mpa_codec, NULL);
     TC_UNLOCK_LIBAVCODEC;
     if (ret < 0) {
         tc_warn("tc_audio_init_ffmpeg: could not open %s codec !",
-                (codeid == CODEC_ID_MP2) ?"mpa" :"ac3");
+#if LIBAVCODEC_VERSION_MAJOR < 55
+                (codeid == CODEC_ID_MP2)
+#else
+                (codeid == AV_CODEC_ID_MP2)
+#endif
+                ?"mpa" :"ac3");
         return(TC_EXPORT_ERROR);
     }
 

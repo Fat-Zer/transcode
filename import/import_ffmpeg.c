@@ -58,6 +58,7 @@ struct ffmpeg_codec {
 };
 
 // fourCC to ID mapping taken from MPlayer's codecs.conf
+#if LIBAVCODEC_VERSION_MAJOR < 55
 static struct ffmpeg_codec ffmpeg_codecs[] = {
   {CODEC_ID_MSMPEG4V1, TC_CODEC_ERROR, "mp41",
     {"MP41", "DIV1", ""}},
@@ -106,6 +107,56 @@ static struct ffmpeg_codec ffmpeg_codecs[] = {
   {CODEC_ID_RAWVIDEO, TC_CODEC_YUV422P, "raw",
     {"Y42B", ""}},
   {0, TC_CODEC_UNKNOWN, NULL, {""}}};
+#else
+static struct ffmpeg_codec ffmpeg_codecs[] = {
+  {AV_CODEC_ID_MSMPEG4V1, TC_CODEC_ERROR, "mp41",
+    {"MP41", "DIV1", ""}},
+  {AV_CODEC_ID_MSMPEG4V2, TC_CODEC_MP42, "mp42",
+    {"MP42", "DIV2", ""}},
+  {AV_CODEC_ID_MSMPEG4V3, TC_CODEC_DIVX3, "msmpeg4",
+    {"DIV3", "DIV5", "AP41", "MPG3", "MP43", ""}},
+  {AV_CODEC_ID_MPEG4, TC_CODEC_DIVX4, "mpeg4",
+    {"DIVX", "XVID", "MP4S", "M4S2", "MP4V", "UMP4", "DX50", ""}},
+  {AV_CODEC_ID_MJPEG, TC_CODEC_MJPEG, "mjpeg",
+    {"MJPG", "AVRN", "AVDJ", "JPEG", "MJPA", "JFIF", ""}},
+  {AV_CODEC_ID_MPEG1VIDEO, TC_CODEC_MPG1, "mpeg1video",
+    {"MPG1", ""}},
+  {AV_CODEC_ID_DVVIDEO, TC_CODEC_DV, "dvvideo",
+    {"DVSD", ""}},
+  {AV_CODEC_ID_WMV1, TC_CODEC_WMV1, "wmv1",
+    {"WMV1", ""}},
+  {AV_CODEC_ID_WMV2, TC_CODEC_WMV2, "wmv2",
+    {"WMV2", ""}},
+  {AV_CODEC_ID_HUFFYUV, TC_CODEC_HUFFYUV, "hfyu",
+    {"HFYU", ""}},
+  {AV_CODEC_ID_H263I, TC_CODEC_H263I, "h263i",
+    {"I263", ""}},
+  {AV_CODEC_ID_H263P, TC_CODEC_H263P, "h263p",
+    {"H263", "U263", "VIV1", ""}},
+  {AV_CODEC_ID_H264, TC_CODEC_H264, "h264",
+    {"H264", "h264", "X264", "x264", "avc1", ""}},
+  {AV_CODEC_ID_RV10, TC_CODEC_RV10, "rv10",
+    {"RV10", "RV13", ""}},
+  {AV_CODEC_ID_SVQ1, TC_CODEC_SVQ1, "svq1",
+    {"SVQ1", ""}},
+  {AV_CODEC_ID_SVQ3, TC_CODEC_SVQ3, "svq3",
+    {"SVQ3", ""}},
+  {AV_CODEC_ID_MPEG2VIDEO, TC_CODEC_MPEG2, "mpeg2video",
+    {"MPG2", ""}},
+  {AV_CODEC_ID_MPEG2VIDEO, TC_CODEC_MPEG, "mpeg2video",
+    {"MPG2", ""}},
+  {AV_CODEC_ID_ASV1, TC_CODEC_ASV1, "asv1",
+    {"ASV1", ""}},
+  {AV_CODEC_ID_ASV2, TC_CODEC_ASV2, "asv2",
+    {"ASV2", ""}},
+  {AV_CODEC_ID_FFV1, TC_CODEC_FFV1, "ffv1",
+    {"FFV1", ""}},
+  {AV_CODEC_ID_RAWVIDEO, TC_CODEC_YUV420P, "raw",
+    {"I420", "IYUV", ""}},
+  {AV_CODEC_ID_RAWVIDEO, TC_CODEC_YUV422P, "raw",
+    {"Y42B", ""}},
+  {0, TC_CODEC_UNKNOWN, NULL, {""}}};
+#endif
 
 #define BUFFER_SIZE SIZE_RGB_FRAME
 
@@ -302,7 +353,7 @@ do_avi:
 
     // Set these to the expected values so that ffmpeg's decoder can
     // properly detect interlaced input.
-    lavc_dec_context = avcodec_alloc_context();
+    lavc_dec_context = avcodec_alloc_context3(lavc_dec_codec);
     if (lavc_dec_context == NULL) {
       tc_log_error(MOD_NAME, "Could not allocate enough memory.");
       return TC_IMPORT_ERROR;
@@ -324,6 +375,7 @@ do_avi:
     // XXX: some codecs need extra data
     switch (codec->id)
     {
+#if LIBAVCODEC_VERSION_MAJOR < 55
       case CODEC_ID_MJPEG: extra_data_size  = 28; break;
       case CODEC_ID_LJPEG: extra_data_size  = 28; break;
       case CODEC_ID_HUFFYUV: extra_data_size = 1000; break;
@@ -331,6 +383,15 @@ do_avi:
       case CODEC_ID_ASV2: extra_data_size = 8; break;
       case CODEC_ID_WMV1: extra_data_size = 4; break;
       case CODEC_ID_WMV2: extra_data_size = 4; break;
+#else
+      case AV_CODEC_ID_MJPEG: extra_data_size  = 28; break;
+      case AV_CODEC_ID_LJPEG: extra_data_size  = 28; break;
+      case AV_CODEC_ID_HUFFYUV: extra_data_size = 1000; break;
+      case AV_CODEC_ID_ASV1: extra_data_size = 8; break;
+      case AV_CODEC_ID_ASV2: extra_data_size = 8; break;
+      case AV_CODEC_ID_WMV1: extra_data_size = 4; break;
+      case AV_CODEC_ID_WMV2: extra_data_size = 4; break;
+#endif
       default: extra_data_size = 0; break;
     }
 
@@ -344,7 +405,7 @@ do_avi:
     }
 
     TC_LOCK_LIBAVCODEC;
-    ret = avcodec_open(lavc_dec_context, lavc_dec_codec);
+    ret = avcodec_open2(lavc_dec_context, lavc_dec_codec, NULL);
     TC_UNLOCK_LIBAVCODEC;
     if (ret < 0) {
       tc_log_warn(MOD_NAME, "Could not initialize the '%s' codec.",
@@ -360,7 +421,11 @@ do_avi:
         frame_size = x_dim*y_dim + 2*UV_PLANE_SIZE(IMG_YUV_DEFAULT,x_dim,y_dim);
 
 	// we adapt the color space
+#if LIBAVCODEC_VERSION_MAJOR < 55
         if(codec->id == CODEC_ID_MJPEG) {
+#else
+        if(codec->id == AV_CODEC_ID_MJPEG) {
+#endif
 	  enable_levels_filter();
         }
         break;
@@ -434,7 +499,11 @@ do_dv:
       }
 
       // we adapt the color space
+#if LIBAVCODEC_VERSION_MAJOR < 55
       if(codec->id == CODEC_ID_MJPEG) {
+#else
+      if(codec->id == AV_CODEC_ID_MJPEG) {
+#endif
         enable_levels_filter();
       }
 
@@ -504,13 +573,25 @@ MOD_decode {
       int bkey = 0;
 
       // check for keyframes
+#if LIBAVCODEC_VERSION_MAJOR < 55
       if (codec->id == CODEC_ID_MSMPEG4V3) {
+#else
+      if (codec->id == AV_CODEC_ID_MSMPEG4V3) {
+#endif
 	if (divx3_is_key(buffer)) bkey = 1;
       }
+#if LIBAVCODEC_VERSION_MAJOR < 55
       else if (codec->id == CODEC_ID_MPEG4) {
+#else
+      else if (codec->id == AV_CODEC_ID_MPEG4) {
+#endif
 	if (mpeg4_is_key(buffer, bytes_read)) bkey = 1;
       }
+#if LIBAVCODEC_VERSION_MAJOR < 55
       else if (codec->id == CODEC_ID_MJPEG) {
+#else
+      else if (codec->id == AV_CODEC_ID_MJPEG) {
+#endif
 	bkey = 1;
       }
 

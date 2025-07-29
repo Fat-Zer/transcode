@@ -57,6 +57,7 @@ struct ffmpeg_codec {
 };
 
 // fourCC to ID mapping taken from MPlayer's codecs.conf
+#if LIBAVCODEC_VERSION_MAJOR < 55
 static struct ffmpeg_codec ffmpeg_codecs[] = {
   {CODEC_ID_MSMPEG4V1, TC_CODEC_ERROR, "mp41",
     {"MP41", "DIV1", ""}},
@@ -91,6 +92,42 @@ static struct ffmpeg_codec ffmpeg_codecs[] = {
   {CODEC_ID_MPEG2VIDEO, TC_CODEC_MPEG2, "mpeg2video",
     {"MPG2", ""}},
   {0, TC_CODEC_UNKNOWN, NULL, {""}}};
+#else
+static struct ffmpeg_codec ffmpeg_codecs[] = {
+  {AV_CODEC_ID_MSMPEG4V1, TC_CODEC_ERROR, "mp41",
+    {"MP41", "DIV1", ""}},
+  {AV_CODEC_ID_MSMPEG4V2, TC_CODEC_MP42, "mp42",
+    {"MP42", "DIV2", ""}},
+  {AV_CODEC_ID_MSMPEG4V3, TC_CODEC_DIVX3, "msmpeg4",
+    {"DIV3", "DIV5", "AP41", "MPG3", "MP43", ""}},
+  {AV_CODEC_ID_MPEG4, TC_CODEC_DIVX4, "mpeg4",
+    {"DIVX", "XVID", "MP4S", "M4S2", "MP4V", "UMP4", "DX50", ""}},
+  {AV_CODEC_ID_MJPEG, TC_CODEC_MJPEG, "mjpeg",
+    {"MJPG", "AVRN", "AVDJ", "JPEG", "MJPA", "JFIF", ""}},
+  {AV_CODEC_ID_MPEG1VIDEO, TC_CODEC_MPEG1VIDEO, "mpeg1video",
+    {"MPG1", ""}},
+  {AV_CODEC_ID_DVVIDEO, TC_CODEC_DV, "dvvideo",
+    {"DVSD", ""}},
+  {AV_CODEC_ID_WMV1, TC_CODEC_WMV1, "wmv1",
+    {"WMV1", ""}},
+  {AV_CODEC_ID_WMV2, TC_CODEC_WMV2, "wmv2",
+    {"WMV2", ""}},
+  {AV_CODEC_ID_HUFFYUV, TC_CODEC_HUFFYUV, "hfyu",
+    {"HFYU", ""}},
+  {AV_CODEC_ID_H263I, TC_CODEC_H263I, "h263i",
+    {"I263", ""}},
+  {AV_CODEC_ID_H263P, TC_CODEC_H263P, "h263p",
+    {"H263", "U263", "VIV1", ""}},
+  {AV_CODEC_ID_RV10, TC_CODEC_RV10, "rv10",
+    {"RV10", "RV13", ""}},
+  {AV_CODEC_ID_SVQ1, TC_CODEC_SVQ1, "svq1",
+    {"SVQ1", ""}},
+  {AV_CODEC_ID_SVQ3, TC_CODEC_SVQ3, "svq3",
+    {"SVQ3", ""}},
+  {AV_CODEC_ID_MPEG2VIDEO, TC_CODEC_MPEG2, "mpeg2video",
+    {"MPG2", ""}},
+  {0, TC_CODEC_UNKNOWN, NULL, {""}}};
+#endif
 
 
 static struct ffmpeg_codec *find_ffmpeg_codec_id(unsigned int transcode_id)
