@@ -314,7 +314,7 @@ do_avi:
 #if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
     lavc_dec_context->error_resilience  = 2;
 #else
-    lavc_dec_context->error_recognition = 2;
+    lavc_dec_context->err_recognition = 2;
 #endif
     lavc_dec_context->error_concealment = 3;
     lavc_dec_context->workaround_bugs = FF_BUG_AUTODETECT;
