@@ -322,7 +322,7 @@ static int opt_preset(const char *opt, const char *arg)
     }
 
     if(!f){
-        fprintf(stderr, "File for preset '%s' not found\n", arg);
+        tc_log_error(MOD_NAME, "File for preset '%s' not found", arg);
         av_exit(1);
     }
 
@@ -1201,7 +1201,7 @@ MOD_init
 	/* FIXME: transcode itself contains "broken ffmpeg default settings", thus we need to override them! */
 	if (lavc_param_video_preset) {
 		avcodec_opts[AVMEDIA_TYPE_VIDEO] = lavc_venc_context;
-		video_codec_name = ffmpeg_codec_name(codec->name);
+		video_codec_name = av_strdup(ffmpeg_codec_name(codec->name));
 
 		const char *preset_start = lavc_param_video_preset;
 		while (preset_start) {
@@ -1219,6 +1219,8 @@ MOD_init
 			if (opt_preset("vpre", preset_name) != 0) {
 				tc_log_warn(MOD_NAME, "Parsing ffmpeg preset '%s' failed", preset_name);
 			}
+      av_free(video_codec_name);
+      video_codec_name = NULL;
 			if (verbose) {
 				int i;
 				tc_log_info(MOD_NAME, "After parsing preset '%s', %i options are overridden:", preset_name, opt_name_count);
