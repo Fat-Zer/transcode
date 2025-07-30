@@ -327,8 +327,8 @@ void decode_lavc(decode_t *decode)
 
       // Convert avcodec image to the requested YUV or RGB format
       switch (lavc_dec_context->pix_fmt) {
-	case PIX_FMT_YUVJ420P:
-	case PIX_FMT_YUV420P:
+	case AV_PIX_FMT_YUVJ420P:
+	case AV_PIX_FMT_YUV420P:
 	    // Remove "dead space" at right edge of planes, if any
 	    if (picture.linesize[0] != lavc_dec_context->width) {
 		int y;
@@ -352,7 +352,7 @@ void decode_lavc(decode_t *decode)
 			  pix_fmt==TC_CODEC_YUV420P ? IMG_YUV420P : IMG_RGB_DEFAULT,
 			  lavc_dec_context->width, lavc_dec_context->height);
 	    break;
-	case PIX_FMT_YUV411P:
+	case AV_PIX_FMT_YUV411P:
 	    if (picture.linesize[0] != lavc_dec_context->width) {
 		int y;
 		for (y = 0; y < lavc_dec_context->height; y++) {
@@ -371,8 +371,8 @@ void decode_lavc(decode_t *decode)
 			  pix_fmt==TC_CODEC_YUV420P ? IMG_YUV420P : IMG_RGB_DEFAULT,
 			  lavc_dec_context->width, lavc_dec_context->height);
 	    break;
-	case PIX_FMT_YUVJ422P:
-	case PIX_FMT_YUV422P:
+	case AV_PIX_FMT_YUVJ422P:
+	case AV_PIX_FMT_YUV422P:
 	    if (picture.linesize[0] != lavc_dec_context->width) {
 		int y;
 		for (y = 0; y < lavc_dec_context->height; y++) {
@@ -391,8 +391,8 @@ void decode_lavc(decode_t *decode)
 			  pix_fmt==TC_CODEC_YUV420P ? IMG_YUV420P : IMG_RGB_DEFAULT,
 			  lavc_dec_context->width, lavc_dec_context->height);
 	    break;
-	case PIX_FMT_YUVJ444P:
-	case PIX_FMT_YUV444P:
+	case AV_PIX_FMT_YUVJ444P:
+	case AV_PIX_FMT_YUV444P:
 	    if (picture.linesize[0] != lavc_dec_context->width) {
 		int y;
 		for (y = 0; y < lavc_dec_context->height; y++) {

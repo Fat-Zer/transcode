@@ -661,8 +661,8 @@ retry:
 
     // Convert avcodec image to our internal YUV or RGB format
     switch (lavc_dec_context->pix_fmt) {
-      case PIX_FMT_YUVJ420P:
-      case PIX_FMT_YUV420P:
+      case AV_PIX_FMT_YUVJ420P:
+      case AV_PIX_FMT_YUV420P:
         src_fmt = IMG_YUV420P;
         YUV_INIT_PLANES(src_planes, frame, src_fmt,
                         lavc_dec_context->width, lavc_dec_context->height);
@@ -693,7 +693,7 @@ retry:
 	}
         break;
 
-      case PIX_FMT_YUV411P:
+      case AV_PIX_FMT_YUV411P:
         src_fmt = IMG_YUV411P;
         YUV_INIT_PLANES(src_planes, frame, src_fmt,
                         lavc_dec_context->width, lavc_dec_context->height);
@@ -721,8 +721,8 @@ retry:
         }
         break;
 
-      case PIX_FMT_YUVJ422P:
-      case PIX_FMT_YUV422P:
+      case AV_PIX_FMT_YUVJ422P:
+      case AV_PIX_FMT_YUV422P:
         src_fmt = IMG_YUV422P;
         YUV_INIT_PLANES(src_planes, frame, src_fmt,
                         lavc_dec_context->width, lavc_dec_context->height);
@@ -750,8 +750,8 @@ retry:
         }
 	break;
 
-      case PIX_FMT_YUVJ444P:
-      case PIX_FMT_YUV444P:
+      case AV_PIX_FMT_YUVJ444P:
+      case AV_PIX_FMT_YUV444P:
         src_fmt = IMG_YUV444P;
         YUV_INIT_PLANES(src_planes, frame, src_fmt,
                         lavc_dec_context->width, lavc_dec_context->height);
