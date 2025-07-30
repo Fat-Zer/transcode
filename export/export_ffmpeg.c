@@ -250,9 +250,9 @@ int opt_default(const char *opt, const char *arg){
     for(type=0; type<AVMEDIA_TYPE_NB && ret>= 0; type++){
 		/* GLUE: +if */
 		if (type == AVMEDIA_TYPE_VIDEO) {
-        const AVOption *o2 = av_find_opt(avcodec_opts[0], opt, NULL, opt_types[type], opt_types[type]);
-        if(o2)
-            ret = av_set_string3(avcodec_opts[type], opt, arg, 1, &o);
+        o = av_opt_find(avcodec_opts[0], opt, NULL, opt_types[type], opt_types[type]);
+        if(o)
+            ret = av_opt_set(avcodec_opts[type], opt, arg, 0);
 		/* GLUE: +if */
 		}
     }
@@ -267,7 +267,10 @@ int opt_default(const char *opt, const char *arg){
         if(opt[0] == 'a')
             ret = av_set_string3(avcodec_opts[AVMEDIA_TYPE_AUDIO], opt+1, arg, 1, &o);
         else */ if(opt[0] == 'v')
-            ret = av_set_string3(avcodec_opts[AVMEDIA_TYPE_VIDEO], opt+1, arg, 1, &o);
+	{
+	    o = av_opt_find(avcodec_opts[AVMEDIA_TYPE_VIDEO], opt+1, NULL, 0, 0);
+            ret = av_opt_set(avcodec_opts[AVMEDIA_TYPE_VIDEO], opt+1, arg, 0);
+	}
 		/* GLUE: disabling
         else if(opt[0] == 's')
             ret = av_set_string3(avcodec_opts[AVMEDIA_TYPE_SUBTITLE], opt+1, arg, 1, &o);
@@ -487,10 +490,10 @@ MOD_init
     }
 
     lavc_venc_context = avcodec_alloc_context3(lavc_venc_codec);
-    lavc_venc_frame   = avcodec_alloc_frame();
+    lavc_venc_frame   = av_frame_alloc();
 
-    lavc_convert_frame= avcodec_alloc_frame();
-    size = avpicture_get_size(PIX_FMT_RGB24, vob->ex_v_width, vob->ex_v_height);
+    lavc_convert_frame= av_frame_alloc();
+    size = avpicture_get_size(AV_PIX_FMT_RGB24, vob->ex_v_width, vob->ex_v_height);
     enc_buffer = tc_malloc(size);
 
     if (lavc_venc_context == NULL || !enc_buffer || !lavc_convert_frame) {
@@ -1114,7 +1117,7 @@ MOD_init
     lavc_venc_context->prediction_method = lavc_param_prediction_method;
 
     if(is_huffyuv)
-        lavc_venc_context->pix_fmt = PIX_FMT_YUV422P;
+        lavc_venc_context->pix_fmt = AV_PIX_FMT_YUV422P;
     else
     {
         switch(pix_fmt)
@@ -1123,18 +1126,18 @@ MOD_init
             case CODEC_RGB:
             {
                 if(is_mjpeg)
-                    lavc_venc_context->pix_fmt = PIX_FMT_YUVJ420P;
+                    lavc_venc_context->pix_fmt = AV_PIX_FMT_YUVJ420P;
                 else
-                    lavc_venc_context->pix_fmt = PIX_FMT_YUV420P;
+                    lavc_venc_context->pix_fmt = AV_PIX_FMT_YUV420P;
                 break;
             }
 
             case CODEC_YUV422:
             {
                 if(is_mjpeg)
-                    lavc_venc_context->pix_fmt = PIX_FMT_YUVJ422P;
+                    lavc_venc_context->pix_fmt = AV_PIX_FMT_YUVJ422P;
                 else
-                    lavc_venc_context->pix_fmt = PIX_FMT_YUV422P;
+                    lavc_venc_context->pix_fmt = AV_PIX_FMT_YUV422P;
                 break;
             }
 
@@ -1596,6 +1599,8 @@ MOD_encode
 
   int out_size;
   const char pict_type_char[5]= {'?', 'I', 'P', 'B', 'S'};
+  AVPacket pkt;
+  int ret, got_packet = 0;
 
   if (param->flag == TC_VIDEO) {
 
@@ -1620,7 +1625,7 @@ MOD_encode
 	        	YUV_INIT_PLANES(src, param->buffer, IMG_YUV_DEFAULT,
 			                	lavc_venc_context->width, lavc_venc_context->height);
                 avpicture_fill((AVPicture *)lavc_venc_frame, img_buffer,
-                               PIX_FMT_YUV422P, lavc_venc_context->width,
+                               AV_PIX_FMT_YUV422P, lavc_venc_context->width,
                                lavc_venc_context->height);
         		/* FIXME: can't use tcv_convert (see decode_lavc.c) */
                 ac_imgconvert(src, IMG_YUV_DEFAULT,
@@ -1650,7 +1655,7 @@ MOD_encode
 		                		lavc_venc_context->width,
                                 lavc_venc_context->height);
                 avpicture_fill((AVPicture *)lavc_venc_frame, img_buffer,
-                               PIX_FMT_YUV420P, lavc_venc_context->width,
+                               AV_PIX_FMT_YUV420P, lavc_venc_context->width,
                                lavc_venc_context->height);
                 ac_imgconvert(src, IMG_YUV422P,
                               lavc_venc_frame->data, IMG_YUV420P,
@@ -1661,7 +1666,7 @@ MOD_encode
 
         case CODEC_RGB:
             avpicture_fill((AVPicture *)lavc_venc_frame, img_buffer,
-                           PIX_FMT_YUV420P, lavc_venc_context->width,
+                           AV_PIX_FMT_YUV420P, lavc_venc_context->width,
                            lavc_venc_context->height);
     	    ac_imgconvert(&param->buffer, IMG_RGB_DEFAULT,
                               lavc_venc_frame->data, IMG_YUV420P,
@@ -1674,12 +1679,16 @@ MOD_encode
               return TC_EXPORT_ERROR;
     }
 
+    av_init_packet(&pkt);
+    pkt.data = enc_buffer;
+    pkt.size = size;
 
     TC_LOCK_LIBAVCODEC;
-    out_size = avcodec_encode_video(lavc_venc_context,
-                                    enc_buffer, size,
-                                    lavc_venc_frame);
+    ret = avcodec_encode_video2(lavc_venc_context, &pkt,
+                                    lavc_venc_frame, &got_packet);
     TC_UNLOCK_LIBAVCODEC;
+
+    out_size = ret ? ret : pkt.size;
 
     if (out_size < 0) {
       tc_log_warn(MOD_NAME, "encoder error: size (%d)", out_size);

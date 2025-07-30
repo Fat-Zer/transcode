@@ -233,7 +233,7 @@ static void pre_encode_video_yuv420p(TCLavcPrivateData *pd,
                                      vframe_list_t *vframe)
 {
     avpicture_fill((AVPicture *)&pd->ff_venc_frame, vframe->video_buf,
-                    PIX_FMT_YUV420P,
+                    AV_PIX_FMT_YUV420P,
                     pd->ff_vcontext.width, pd->ff_vcontext.height);
 }
 
@@ -247,7 +247,7 @@ static void pre_encode_video_yuv420p_huffyuv(TCLavcPrivateData *pd,
                     IMG_YUV_DEFAULT,
                     pd->ff_vcontext.width, pd->ff_vcontext.height);
     avpicture_fill((AVPicture *)&pd->ff_venc_frame, pd->vframe_buf->video_buf,
-                   PIX_FMT_YUV422P,
+                   AV_PIX_FMT_YUV422P,
                    pd->ff_vcontext.width, pd->ff_vcontext.height);
     ac_imgconvert(src, IMG_YUV_DEFAULT,
                   pd->ff_venc_frame.data, IMG_YUV422P,
@@ -263,7 +263,7 @@ static void pre_encode_video_yuv422p(TCLavcPrivateData *pd,
                     IMG_YUV422P,
                     pd->ff_vcontext.width, pd->ff_vcontext.height);
     avpicture_fill((AVPicture *)&pd->ff_venc_frame, pd->vframe_buf->video_buf,
-                   PIX_FMT_YUV420P,
+                   AV_PIX_FMT_YUV420P,
                    pd->ff_vcontext.width, pd->ff_vcontext.height);
     ac_imgconvert(src, IMG_YUV422P,
                   pd->ff_venc_frame.data, IMG_YUV420P,
@@ -275,7 +275,7 @@ static void pre_encode_video_yuv422p_huffyuv(TCLavcPrivateData *pd,
                                              vframe_list_t *vframe)
 {
     avpicture_fill((AVPicture *)&pd->ff_venc_frame, vframe->video_buf,
-                   PIX_FMT_YUV422P,
+                   AV_PIX_FMT_YUV422P,
                    pd->ff_vcontext.width, pd->ff_vcontext.height);
 
 }
@@ -285,7 +285,7 @@ static void pre_encode_video_rgb24(TCLavcPrivateData *pd,
                                    vframe_list_t *vframe)
 {
     avpicture_fill((AVPicture *)&pd->ff_venc_frame, pd->vframe_buf->video_buf,
-                   PIX_FMT_YUV420P,
+                   AV_PIX_FMT_YUV420P,
                    pd->ff_vcontext.width, pd->ff_vcontext.height);
     ac_imgconvert(&vframe->video_buf, IMG_RGB_DEFAULT,
                   pd->ff_venc_frame.data, IMG_YUV420P,
@@ -610,21 +610,21 @@ static int tc_lavc_set_pix_fmt(TCLavcPrivateData *pd, const vob_t *vob)
       case CODEC_YUV:
         if (TC_VCODEC_ID(pd) == TC_CODEC_HUFFYUV) {
             pd->tc_pix_fmt = TC_CODEC_YUV422P;
-            pd->ff_vcontext.pix_fmt = PIX_FMT_YUV422P;
+            pd->ff_vcontext.pix_fmt = AV_PIX_FMT_YUV422P;
             pd->pre_encode_video = pre_encode_video_yuv420p_huffyuv;
         } else {
             pd->tc_pix_fmt = TC_CODEC_YUV420P;
             pd->ff_vcontext.pix_fmt = (TC_VCODEC_ID(pd) == TC_CODEC_MJPEG) 
-                                       ? PIX_FMT_YUVJ420P
-                                       : PIX_FMT_YUV420P;
+                                       ? AV_PIX_FMT_YUVJ420P
+                                       : AV_PIX_FMT_YUV420P;
             pd->pre_encode_video = pre_encode_video_yuv420p;
         }
         break;
       case CODEC_YUV422:
         pd->tc_pix_fmt = TC_CODEC_YUV422P;
         pd->ff_vcontext.pix_fmt = (TC_VCODEC_ID(pd) == TC_CODEC_MJPEG) 
-                                   ? PIX_FMT_YUVJ422P
-                                   : PIX_FMT_YUV422P;
+                                   ? AV_PIX_FMT_YUVJ422P
+                                   : AV_PIX_FMT_YUV422P;
         if (TC_VCODEC_ID(pd) == TC_CODEC_HUFFYUV) {
             pd->pre_encode_video = pre_encode_video_yuv422p_huffyuv;
         } else {
@@ -634,10 +634,10 @@ static int tc_lavc_set_pix_fmt(TCLavcPrivateData *pd, const vob_t *vob)
       case CODEC_RGB:
         pd->tc_pix_fmt = TC_CODEC_RGB;
         pd->ff_vcontext.pix_fmt = (TC_VCODEC_ID(pd) == TC_CODEC_HUFFYUV)
-                                        ? PIX_FMT_YUV422P
+                                        ? AV_PIX_FMT_YUV422P
                                         : (TC_VCODEC_ID(pd) == TC_CODEC_MJPEG) 
-                                           ? PIX_FMT_YUVJ420P
-                                           : PIX_FMT_YUV420P;
+                                           ? AV_PIX_FMT_YUVJ420P
+                                           : AV_PIX_FMT_YUV420P;
         pd->pre_encode_video = pre_encode_video_rgb24;
         break;
       default:
@@ -1390,7 +1390,7 @@ static int tc_lavc_configure(TCModuleInstance *self,
     /* FIXME: move into core? */
     TC_INIT_LIBAVCODEC;
 
-    avcodec_get_frame_defaults(&pd->ff_venc_frame);
+    av_frame_unref(&pd->ff_venc_frame);
     /*
      * auxiliary config data needs to be blanked too
      * before any other operation
@@ -1523,6 +1523,8 @@ static int tc_lavc_encode_video(TCModuleInstance *self,
                                 vframe_list_t *outframe)
 {
     TCLavcPrivateData *pd = NULL;
+    AVPacket pkt;
+    int ret, got_packet = 0;
 
     TC_MODULE_SELF_CHECK(self, "encode_video");
 
@@ -1537,12 +1539,15 @@ static int tc_lavc_encode_video(TCModuleInstance *self,
 
     pd->pre_encode_video(pd, inframe); 
 
+    av_init_packet(&pkt);
+    pkt.data = outframe->video_buf;
+    pkt.size = inframe->video_size;
+
     TC_LOCK_LIBAVCODEC;
-    outframe->video_len = avcodec_encode_video(&pd->ff_vcontext,
-                                               outframe->video_buf,
-                                               inframe->video_size,
-                                               &pd->ff_venc_frame);
+    ret = avcodec_encode_video2(&pd->ff_vcontext,   &pkt,
+    				&pd->ff_venc_frame, &got_packet);
     TC_UNLOCK_LIBAVCODEC;
+    outframe->video_len = ret ? ret : pkt.size;
 
     if (outframe->video_len < 0) {
         tc_log_warn(MOD_NAME, "encoder error: size (%i)",
