@@ -243,7 +243,7 @@ static int mp3scan(int infd, int outfd)
 }
 
 #define MAX_BUF 4096
-char audio[MAX_BUF];
+static char audio[MAX_BUF];
 
 /* ------------------------------------------------------------
  *
