@@ -368,7 +368,7 @@ static int tc_v4l2_video_setup_stream_parameters(V4L2Source *vs, int fps)
     if (err < 0) {
         tc_log_warn(MOD_NAME, "driver does not support setting parameters"
                               " (ioctl(VIDIOC_S_PARM) returns \"%s\")",
-                    errno <= sys_nerr ? sys_errlist[errno] : "unknown");
+                              strerror(errno));
     }
     return TC_OK;
 }
