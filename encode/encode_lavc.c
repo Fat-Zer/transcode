@@ -77,6 +77,13 @@ struct tclavcconfigdata_ {
     int luma_elim_threshold;
     int chroma_elim_threshold;
     int quantizer_noise_shaping;
+    int inter_quant_bias;
+    int intra_quant_bias;
+    int scenechange_factor;
+    int rc_strategy;
+    float rc_initial_cplx;
+    float rc_qsquish;
+    float border_masking;
 
     /* same as above for flags */
     struct {
@@ -684,7 +691,7 @@ static int tc_lavc_init_multipass(TCLavcPrivateData *pd, const vob_t *vob)
     switch (vob->divxmultipass) {
       case 1:
         CAN_DO_MULTIPASS(multipass_flag);
-        pd->ff_vcontext.flags |= CODEC_FLAG_PASS1;
+        pd->ff_vcontext.flags |= AV_CODEC_FLAG_PASS1;
         pd->stats_file = fopen(vob->divxlogfile, "w");
         if (pd->stats_file == NULL) {
             tc_log_error(MOD_NAME, "could not create 2pass log file"
@@ -694,7 +701,7 @@ static int tc_lavc_init_multipass(TCLavcPrivateData *pd, const vob_t *vob)
         break;
       case 2:
         CAN_DO_MULTIPASS(multipass_flag);
-        pd->ff_vcontext.flags |= CODEC_FLAG_PASS2;
+        pd->ff_vcontext.flags |= AV_CODEC_FLAG_PASS2;
         pd->stats_file = fopen(vob->divxlogfile, "r");
         if (pd->stats_file == NULL){
             tc_log_error(MOD_NAME, "could not open 2pass log file \"%s\""
@@ -723,7 +730,7 @@ static int tc_lavc_init_multipass(TCLavcPrivateData *pd, const vob_t *vob)
         break;
       case 3:
         /* fixed qscale :p */
-        pd->ff_vcontext.flags |= CODEC_FLAG_QSCALE;
+        pd->ff_vcontext.flags |= AV_CODEC_FLAG_QSCALE;
         pd->ff_venc_frame.quality = vob->divxbitrate;
         break;
     }
@@ -970,7 +977,7 @@ static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
     pd->confdata.rc_buffer_size  = 0;
     pd->confdata.lmin            = 2;
     pd->confdata.lmax            = 31;
-    pd->confdata.me_method       = ME_EPZS;
+    pd->confdata.me_method       = 0;
 
     memset(&pd->confdata.flags, 0, sizeof(pd->confdata.flags));
     pd->confdata.turbo_setup = 0;
@@ -983,12 +990,12 @@ static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
     pd->ff_vcontext.me_range                = 0;
     pd->ff_vcontext.mb_decision             = 0;
     pd->ff_vcontext.scenechange_threshold   = 0;
-    pd->ff_vcontext.scenechange_factor      = 1;
+    pd->confdata.scenechange_factor         = 1;
     pd->ff_vcontext.b_frame_strategy        = 0;
     pd->ff_vcontext.b_sensitivity           = 40;
     pd->ff_vcontext.brd_scale               = 0;
     pd->ff_vcontext.bidir_refine            = 0;
-    pd->ff_vcontext.rc_strategy             = 2;
+    pd->confdata.rc_strategy                = 2;
     pd->ff_vcontext.b_quant_factor          = 1.25;
     pd->ff_vcontext.i_quant_factor          = 0.8;
     pd->ff_vcontext.b_quant_offset          = 1.25;
@@ -996,8 +1003,8 @@ static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
     pd->ff_vcontext.qblur                   = 0.5;
     pd->ff_vcontext.qcompress               = 0.5;
     pd->ff_vcontext.mpeg_quant              = 0;
-    pd->ff_vcontext.rc_initial_cplx         = 0.0;
-    pd->ff_vcontext.rc_qsquish              = 1.0;
+    pd->confdata.rc_initial_cplx            = 0.0;
+    pd->confdata.rc_qsquish              = 1.0;
     pd->confdata.luma_elim_threshold     = 0;
     pd->confdata.chroma_elim_threshold   = 0;
     pd->ff_vcontext.strict_std_compliance   = 0;
@@ -1008,7 +1015,7 @@ static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
     pd->ff_vcontext.temporal_cplx_masking   = 0.0;
     pd->ff_vcontext.spatial_cplx_masking    = 0.0;
     pd->ff_vcontext.p_masking               = 0.0;
-    pd->ff_vcontext.border_masking          = 0.0;
+    pd->confdata.border_masking          = 0.0;
     pd->ff_vcontext.me_pre_cmp              = 0;
     pd->ff_vcontext.me_cmp                  = 0;
     pd->ff_vcontext.me_sub_cmp              = 0;
@@ -1020,8 +1027,6 @@ static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
     pd->ff_vcontext.pre_me                  = 1;
     pd->ff_vcontext.me_subpel_quality       = 8;
     pd->ff_vcontext.refs                    = 1;
-    pd->ff_vcontext.intra_quant_bias        = FF_DEFAULT_QUANT_BIAS;
-    pd->ff_vcontext.inter_quant_bias        = FF_DEFAULT_QUANT_BIAS;
     pd->ff_vcontext.noise_reduction         = 0;
     pd->confdata.quantizer_noise_shaping = 0;
     pd->ff_vcontext.flags                   = 0;
@@ -1044,19 +1049,19 @@ static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
  */
 static void tc_lavc_dispatch_settings(TCLavcPrivateData *pd)
 {
+    char buf[1024];
     /* some translation... */
     pd->ff_vcontext.bit_rate_tolerance = pd->confdata.vrate_tolerance * 1000;
     pd->ff_vcontext.rc_min_rate = pd->confdata.rc_min_rate * 1000;
     pd->ff_vcontext.rc_max_rate = pd->confdata.rc_max_rate * 1000;
     pd->ff_vcontext.rc_buffer_size = pd->confdata.rc_buffer_size * 1024;
-    pd->ff_vcontext.lmin = (int)(FF_QP2LAMBDA * pd->confdata.lmin + 0.5);
-    pd->ff_vcontext.lmax = (int)(FF_QP2LAMBDA * pd->confdata.lmax + 0.5);
-    pd->ff_vcontext.me_method = ME_ZERO + pd->confdata.me_method;
+    snprintf(buf, sizeof(buf), "%i", (int)(FF_QP2LAMBDA * pd->confdata.lmin + 0.5));
+    av_dict_set(&(pd->ff_opts), "lmin", buf, 0);
+    snprintf(buf, sizeof(buf), "%i", (int)(FF_QP2LAMBDA * pd->confdata.lmax + 0.5));
+    av_dict_set(&(pd->ff_opts), "lmax", buf, 0);
 
     pd->ff_vcontext.flags = 0;
-    SET_FLAG(pd, mv0);
     SET_FLAG(pd, qpel);
-    SET_FLAG(pd, naq);
     SET_FLAG(pd, ilme);
     SET_FLAG(pd, ildct);
     SET_FLAG(pd, aic);
@@ -1077,8 +1082,8 @@ static void tc_lavc_dispatch_settings(TCLavcPrivateData *pd)
     }
     if (pd->interlacing.active) {
         /* enforce interlacing */
-        pd->ff_vcontext.flags |= CODEC_FLAG_INTERLACED_DCT;
-        pd->ff_vcontext.flags |= CODEC_FLAG_INTERLACED_ME;
+        pd->ff_vcontext.flags |= AV_CODEC_FLAG_INTERLACED_DCT;
+        pd->ff_vcontext.flags |= AV_CODEC_FLAG_INTERLACED_ME;
     }
     if (pd->confdata.flags.alt) {
         av_dict_set(&(pd->ff_opts), "alternate_scan", "1", 0);
@@ -1095,15 +1100,31 @@ static void tc_lavc_dispatch_settings(TCLavcPrivateData *pd)
     if (pd->confdata.flags.cbp) {
     	av_dict_set(&(pd->ff_opts), "mpv_flags", "+cbp_rd", 0);
     }
+    if (pd->confdata.flags.mv0) {
+    	av_dict_set(&(pd->ff_opts), "mpv_flags", "+mv0", 0);
+    }
+    if (pd->confdata.flags.naq) {
+    	av_dict_set(&(pd->ff_opts), "mpv_flags", "+naq", 0);
+    }
 
-    char buf[1024];
 #define set_dict_opt(val, opt) \
     snprintf(buf, sizeof(buf), "%i", pd->confdata.val);\
+    av_dict_set(&(pd->ff_opts), opt, buf, 0)
+#define set_dict_float_opt(val, opt) \
+    snprintf(buf, sizeof(buf), "%f", pd->confdata.val);\
     av_dict_set(&(pd->ff_opts), opt, buf, 0)
 
     set_dict_opt(luma_elim_threshold, "luma_elim_threshold");
     set_dict_opt(chroma_elim_threshold, "chroma_elim_threshold");
     set_dict_opt(quantizer_noise_shaping, "quantizer_noise_shaping");
+    set_dict_opt(inter_quant_bias, "pbias");
+    set_dict_opt(intra_quant_bias, "ibias");
+    set_dict_opt(me_method, "me_method");
+    set_dict_opt(scenechange_factor, "sc_factor");
+    set_dict_opt(rc_strategy, "rc_strategy");
+    set_dict_float_opt(rc_initial_cplx, "rc_init_cplx");
+    set_dict_float_opt(rc_qsquish, "qsquish");
+    set_dict_float_opt(border_masking, "border_mask");
 }
 
 #undef SET_FLAG
@@ -1159,12 +1180,12 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         { "lmin", PAUX(lmin), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.01, 255.0 },
         { "lmax", PAUX(lmax), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.01, 255.0 },
         { "vqdiff", PCTX(max_qdiff), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 31 },
-        { "vmax_b_frames", PCTX(max_b_frames), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, FF_MAX_B_FRAMES },
+        { "vmax_b_frames", PCTX(max_b_frames), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, INT_MAX },
         { "vme", PAUX(me_method), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 16, },
         { "me_range", PCTX(me_range), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 16000 },
         { "mbd", PCTX(mb_decision), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 3 },
         { "sc_threshold", PCTX(scenechange_threshold), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -1000000, 1000000 },
-        { "sc_factor", PCTX(scenechange_factor), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 16 },
+        { "sc_factor", PAUX(scenechange_factor), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 16 },
         { "vb_strategy", PCTX(b_frame_strategy), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 10 },
         { "b_sensitivity", PCTX(b_sensitivity), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 100 },
         { "brd_scale", PCTX(brd_scale), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 10 },
@@ -1175,7 +1196,7 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         { "vrc_maxrate", PAUX(rc_max_rate), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 24000000 },
         { "vrc_minrate", PAUX(rc_min_rate), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 24000000 },
         { "vrc_buf_size", PAUX(rc_buffer_size), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 4, 24000000 },
-        { "vrc_strategy", PCTX(rc_strategy), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 2 },
+        { "vrc_strategy", PAUX(rc_strategy), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 2 },
         { "vb_qfactor", PCTX(b_quant_factor), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, -31.0, 31.0 },
         { "vi_qfactor", PCTX(i_quant_factor), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, -31.0, 31.0 },
         { "vb_qoffset", PCTX(b_quant_offset), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 31.0 },
@@ -1185,9 +1206,9 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         { "mpeg_quant", PCTX(mpeg_quant), TCCONF_TYPE_FLAG, 0, 0, 1 },
         //  { "vrc_eq",     }, // not yet supported
         { "vrc_override", rc_override_buf, TCCONF_TYPE_STRING, 0, 0, 0 },
-        { "vrc_init_cplx", PCTX(rc_initial_cplx), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 9999999.0 },
+        { "vrc_init_cplx", PAUX(rc_initial_cplx), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 9999999.0 },
         //  { "vrc_init_occupancy",   }, // not yet supported
-        { "vqsquish", PCTX(rc_qsquish), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 99.0 },
+        { "vqsquish", PAUX(rc_qsquish), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 99.0 },
         { "vlelim", PAUX(luma_elim_threshold), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
         { "vcelim", PAUX(chroma_elim_threshold), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
         { "vstrict", PCTX(strict_std_compliance), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99 },
@@ -1199,7 +1220,7 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         { "tcplx_mask", PCTX(temporal_cplx_masking), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 1.0 },
         { "scplx_mask", PCTX(spatial_cplx_masking), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 1.0 },
         { "p_mask", PCTX(p_masking), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 1.0 },
-        { "border_mask", PCTX(border_masking), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 1.0 },
+        { "border_mask", PAUX(border_masking), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 1.0 },
         { "pred", PCTX(prediction_method), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 4 },
         { "precmp", PCTX(me_pre_cmp), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 2000 },
         { "cmp", PCTX(me_cmp), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 2000 },
@@ -1212,37 +1233,37 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         { "pre_me", PCTX(pre_me), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 2000},
         { "subq", PCTX(me_subpel_quality), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 8 },
         { "refs", PCTX(refs), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 1, 8 },
-        { "ibias", PCTX(intra_quant_bias), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -512, 512 },
-        { "pbias", PCTX(inter_quant_bias), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -512, 512 },
+        { "ibias", PAUX(intra_quant_bias), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -512, 512 },
+        { "pbias", PAUX(inter_quant_bias), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -512, 512 },
         { "nr", PCTX(noise_reduction), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 1000000},
         { "qns", PAUX(quantizer_noise_shaping), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 3 },
         { "inter_matrix_file", inter_matrix_file, TCCONF_TYPE_STRING, 0, 0, 0 },
         { "intra_matrix_file", intra_matrix_file, TCCONF_TYPE_STRING, 0, 0, 0 },
     
-        { "mv0", PAUX(flags.mv0), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_MV0 },
+        { "mv0", PAUX(flags.mv0), TCCONF_TYPE_FLAG, 0, 0, 1 },
         { "cbp", PAUX(flags.cbp), TCCONF_TYPE_FLAG, 0, 0, 1 },
-        { "qpel", PAUX(flags.qpel), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_QPEL },
+        { "qpel", PAUX(flags.qpel), TCCONF_TYPE_FLAG, 0, 0, AV_CODEC_FLAG_QPEL },
         { "alt", PAUX(flags.alt), TCCONF_TYPE_FLAG, 0, 0, 1 },
-        { "ilme", PAUX(flags.ilme), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_INTERLACED_ME },
-        { "ildct", PAUX(flags.ildct), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_INTERLACED_DCT },
-        { "naq", PAUX(flags.naq), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_NORMALIZE_AQP },
+        { "ilme", PAUX(flags.ilme), TCCONF_TYPE_FLAG, 0, 0, AV_CODEC_FLAG_INTERLACED_ME },
+        { "ildct", PAUX(flags.ildct), TCCONF_TYPE_FLAG, 0, 0, AV_CODEC_FLAG_INTERLACED_DCT },
+        { "naq", PAUX(flags.naq), TCCONF_TYPE_FLAG, 0, 0, 1 },
         { "vdpart", PAUX(flags.vdpart), TCCONF_TYPE_FLAG, 0, 0, 1 },
 #if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
         { "aic", PAUX(flags.aic), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_H263P_AIC },
 #else        
-        { "aic", PAUX(flags.aic), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_AC_PRED },
+        { "aic", PAUX(flags.aic), TCCONF_TYPE_FLAG, 0, 0, AV_CODEC_FLAG_AC_PRED },
 #endif
         { "aiv", PAUX(flags.aiv), TCCONF_TYPE_FLAG, 0, 0, 1 },
         { "umv", PAUX(flags.umv), TCCONF_TYPE_FLAG, 0, 0, 1 },
-        { "psnr", PAUX(flags.psnr), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_PSNR },
+        { "psnr", PAUX(flags.psnr), TCCONF_TYPE_FLAG, 0, 0, AV_CODEC_FLAG_PSNR },
 #if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
         { "trell", PAUX(flags.trell), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_TRELLIS_QUANT },
 #else
         { "trell", PCTX(trellis), TCCONF_TYPE_FLAG, 0, 0, 1 },
 #endif
-        { "gray", PAUX(flags.gray), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_GRAY },
-        { "v4mv", PAUX(flags.v4mv), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_4MV },
-        { "closedgop", PAUX(flags.closedgop), TCCONF_TYPE_FLAG, 0, 0, CODEC_FLAG_CLOSED_GOP },
+        { "gray", PAUX(flags.gray), TCCONF_TYPE_FLAG, 0, 0, AV_CODEC_FLAG_GRAY },
+        { "v4mv", PAUX(flags.v4mv), TCCONF_TYPE_FLAG, 0, 0, AV_CODEC_FLAG_4MV },
+        { "closedgop", PAUX(flags.closedgop), TCCONF_TYPE_FLAG, 0, 0, AV_CODEC_FLAG_CLOSED_GOP },
     
         //  { "turbo", PAUX(turbo_setup), TCCONF_TYPE_FLAG, 0, 0, 1 }, // not yet  supported
         /* End of the config file */

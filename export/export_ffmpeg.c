@@ -831,14 +831,11 @@ MOD_init
 
     lavc_venc_context->bit_rate           = vob->divxbitrate * 1000;
     lavc_venc_context->bit_rate_tolerance = lavc_param_vrate_tolerance * 1000;
-    lavc_venc_context->lmin= (int)(FF_QP2LAMBDA * lavc_param_lmin + 0.5);
-    lavc_venc_context->lmax= (int)(FF_QP2LAMBDA * lavc_param_lmax + 0.5);
     lavc_venc_context->max_qdiff          = lavc_param_vqdiff;
     lavc_venc_context->qcompress          = lavc_param_vqcompress;
     lavc_venc_context->qblur              = lavc_param_vqblur;
     lavc_venc_context->max_b_frames       = lavc_param_vmax_b_frames;
     lavc_venc_context->b_quant_factor     = lavc_param_vb_qfactor;
-    lavc_venc_context->rc_strategy        = lavc_param_vrc_strategy;
     lavc_venc_context->b_frame_strategy   = lavc_param_vb_strategy;
     lavc_venc_context->b_quant_offset     = lavc_param_vb_qoffset;
 
@@ -846,8 +843,23 @@ MOD_init
 #define set_dict_opt(val, opt) \
 	snprintf(buf, sizeof(buf), "%i", val); \
 	av_dict_set(&lavc_venc_opts, opt, buf, 0)
+#define set_dict_float_opt(val, opt) \
+	snprintf(buf, sizeof(buf), "%f", val); \
+	av_dict_set(&lavc_venc_opts, opt, buf, 0)
     set_dict_opt(lavc_param_luma_elim_threshold, "luma_elim_threshold");
     set_dict_opt(lavc_param_chroma_elim_threshold, "chroma_elim_threshold");
+    set_dict_opt((int)(FF_QP2LAMBDA * lavc_param_lmin + 0.5), "lmin");
+    set_dict_opt((int)(FF_QP2LAMBDA * lavc_param_lmax + 0.5), "lmax");
+    set_dict_opt(lavc_param_vrc_strategy, "rc_strategy");
+    set_dict_float_opt(lavc_param_rc_qsquish, "qsquish");
+    set_dict_float_opt(lavc_param_rc_qmod_amp, "rc_qmod_amp");
+    set_dict_opt(lavc_param_rc_qmod_freq, "rc_qmod_freq");
+    set_dict_opt(lavc_param_rc_eq, "rc_eq");
+    set_dict_opt(lavc_param_vme, "me_method");
+    set_dict_opt(lavc_param_ibias, "ibias");
+    set_dict_opt(lavc_param_pbias, "pbias");
+    set_dict_float_opt(lavc_param_rc_buffer_aggressivity, "rc_buf_aggressivity");
+    set_dict_float_opt(lavc_param_rc_initial_cplx, "rc_init_cplx");
     lavc_venc_context->rtp_payload_size   = lavc_param_packet_size;
 #if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)   
     if (lavc_param_packet_size)
@@ -856,15 +868,9 @@ MOD_init
     lavc_venc_context->strict_std_compliance= lavc_param_strict;
     lavc_venc_context->i_quant_factor     = lavc_param_vi_qfactor;
     lavc_venc_context->i_quant_offset     = lavc_param_vi_qoffset;
-    lavc_venc_context->rc_qsquish         = lavc_param_rc_qsquish;
-    lavc_venc_context->rc_qmod_amp        = lavc_param_rc_qmod_amp;
-    lavc_venc_context->rc_qmod_freq       = lavc_param_rc_qmod_freq;
-    lavc_venc_context->rc_eq              = lavc_param_rc_eq;
     lavc_venc_context->rc_max_rate        = lavc_param_rc_max_rate * 1000;
     lavc_venc_context->rc_min_rate        = lavc_param_rc_min_rate * 1000;
     lavc_venc_context->rc_buffer_size     = lavc_param_rc_buffer_size * 1024;
-    lavc_venc_context->rc_buffer_aggressivity= lavc_param_rc_buffer_aggressivity;
-    lavc_venc_context->rc_initial_cplx    = lavc_param_rc_initial_cplx;
     lavc_venc_context->debug              = lavc_param_debug;
     lavc_venc_context->last_predictor_count= lavc_param_last_pred;
     lavc_venc_context->pre_me             = lavc_param_pre_me;
@@ -872,8 +878,6 @@ MOD_init
     lavc_venc_context->pre_dia_size       = lavc_param_pre_dia_size;
     lavc_venc_context->me_subpel_quality  = lavc_param_me_subpel_quality;
     lavc_venc_context->me_range           = lavc_param_me_range;
-    lavc_venc_context->intra_quant_bias   = lavc_param_ibias;
-    lavc_venc_context->inter_quant_bias   = lavc_param_pbias;
     lavc_venc_context->coder_type         = lavc_param_coder;
     lavc_venc_context->context_model      = lavc_param_context;
     lavc_venc_context->scenechange_threshold= lavc_param_sc_threshold;
@@ -1079,6 +1083,8 @@ MOD_init
     lavc_venc_context->flags |= lavc_param_mv0;
     if(lavc_param_qp_rd)
     	av_dict_set(&lavc_venc_opts, "mpv_flags", "+qp_rd", 0);
+    if (lavc_param_normalize_aqp)
+    	av_dict_set(&lavc_venc_opts, "mpv_flags", "+naq", 0);
     lavc_venc_context->flags |= lavc_param_ilme;
 #if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)   
     lavc_venc_context->flags |= lavc_param_trell;
@@ -1087,9 +1093,7 @@ MOD_init
 #endif
 
     if (lavc_param_gray)
-        lavc_venc_context->flags |= CODEC_FLAG_GRAY;
-    if (lavc_param_normalize_aqp)
-        lavc_venc_context->flags |= CODEC_FLAG_NORMALIZE_AQP;
+        lavc_venc_context->flags |= AV_CODEC_FLAG_GRAY;
 
     switch(vob->encode_fields) {
     case TC_ENCODE_FIELDS_TOP_FIRST:
@@ -1107,9 +1111,9 @@ MOD_init
     }
 
     lavc_venc_context->flags |= interlacing_active ?
-        CODEC_FLAG_INTERLACED_DCT : 0;
+        AV_CODEC_FLAG_INTERLACED_DCT : 0;
     lavc_venc_context->flags |= interlacing_active ?
-        CODEC_FLAG_INTERLACED_ME : 0;
+        AV_CODEC_FLAG_INTERLACED_ME : 0;
 
     lavc_venc_context->flags |= lavc_param_psnr;
     do_psnr = lavc_param_psnr;
@@ -1156,7 +1160,7 @@ MOD_init
                   "encoding.");
           return TC_EXPORT_ERROR;
         }
-        lavc_venc_context->flags |= CODEC_FLAG_PASS1;
+        lavc_venc_context->flags |= AV_CODEC_FLAG_PASS1;
         stats_file = fopen(vob->divxlogfile, "w");
         if (stats_file == NULL){
           tc_log_warn(MOD_NAME, "Could not create 2pass log file \"%s\".",
@@ -1170,7 +1174,7 @@ MOD_init
                   "encoding.");
           return TC_EXPORT_ERROR;
         }
-        lavc_venc_context->flags |= CODEC_FLAG_PASS2;
+        lavc_venc_context->flags |= AV_CODEC_FLAG_PASS2;
         stats_file= fopen(vob->divxlogfile, "r");
         if (stats_file==NULL){
           tc_log_warn(MOD_NAME, "Could not open 2pass log file \"%s\" for "
@@ -1201,12 +1205,11 @@ MOD_init
         break;
       case 3:
         /* fixed qscale :p */
-        lavc_venc_context->flags   |= CODEC_FLAG_QSCALE;
+        lavc_venc_context->flags   |= AV_CODEC_FLAG_QSCALE;
         lavc_venc_frame->quality  = vob->divxbitrate;
         break;
     }
 
-    lavc_venc_context->me_method = ME_ZERO + lavc_param_vme;
 
 	/* FIXME: transcode itself contains "broken ffmpeg default settings", thus we need to override them! */
 	if (lavc_param_video_preset && strcmp(lavc_param_video_preset, "none")) {
