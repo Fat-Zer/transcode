@@ -361,7 +361,7 @@ do_avi:
     lavc_dec_context->width  = x_dim;
     lavc_dec_context->height = y_dim;
 
-    if (vob->decolor) lavc_dec_context->flags |= CODEC_FLAG_GRAY;
+    if (vob->decolor) lavc_dec_context->flags |= AV_CODEC_FLAG_GRAY;
 #if LIBAVCODEC_VERSION_INT < ((52<<16)+(0<<8)+0)
     lavc_dec_context->error_resilience  = 2;
 #else
