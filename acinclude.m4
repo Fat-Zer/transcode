@@ -561,14 +561,6 @@ if test x"$enable_$1" = x"yes" ; then
       fi
     fi
   fi
-  ipaths="" ; xi=""
-  for i in $$1_ii ; do
-    case $i in
-      -I*) ipaths="$ipaths $i" ;;
-        *) xi="$xi $i" ;;
-    esac
-  done
-  $1_ii="$ipaths"
   $1_ii="`echo $$1_ii | sed -e 's/  */ /g'`"
   $3_EXTRA_CFLAGS="$$3_EXTRA_CFLAGS $xi"
   $3_EXTRA_CFLAGS="`echo $$3_EXTRA_CFLAGS | sed -e 's/  */ /g'`"
