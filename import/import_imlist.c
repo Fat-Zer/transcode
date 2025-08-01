@@ -155,7 +155,7 @@ MOD_decode
 
         MagickSetLastIterator(wand);
 
-        status = MagickGetImagePixels(wand,
+        status = MagickExportImagePixels(wand,
                                       0, 0, width, height,
                                       "RGB", CharPixel,
                                       param->buffer);
