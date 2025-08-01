@@ -63,6 +63,7 @@ static void decode_mpaudio(decode_t *decode, int format)
 #ifdef HAVE_LAME
     int samples = 0, j, bytes, channels = 0, i, padding = 0;
     int verbose;
+    hip_t hip_handle = 0;
 
     mp3data_struct *mp3data = NULL;
     FILE *in_file = NULL;
@@ -82,7 +83,8 @@ static void decode_mpaudio(decode_t *decode, int format)
         exit(1);
     }
 
-    if (lame_decode_init() < 0) {
+    hip_handle = hip_decode_init();
+    if (!hip_handle) {
         tc_log_error(__FILE__, "failed to init decoder");
         exit(1);
     }
@@ -98,7 +100,7 @@ static void decode_mpaudio(decode_t *decode, int format)
             ungetc(c, in_file);
     }
 
-    samples = lame_decode_initfile(in_file, mp3data, format);
+    samples = hip_decode_initfile(hip_handle, in_file, mp3data, format);
 
     if (verbose) {
         tc_log_info(__FILE__, "channels=%d, samplerate=%d Hz, bitrate=%d kbps, (%d)",
@@ -128,7 +130,7 @@ static void decode_mpaudio(decode_t *decode, int format)
     // decoder loop
     channels = mp3data->stereo;
 
-    while ((samples=lame_decode_fromfile(in_file, ch1, ch2, mp3data)) > 0) {
+    while ((samples=hip_decode_fromfile(hip_handle, in_file, ch1, ch2, mp3data)) > 0) {
         // interleave data
         j = 0;
         switch (channels) {
@@ -153,6 +155,7 @@ static void decode_mpaudio(decode_t *decode, int format)
         }
     }
 
+    hip_decode_exit(hip_handle);
     import_exit(0);
 
 #else  // HAVE_LAME

@@ -36,8 +36,8 @@
 #include <lame.h>
 #endif
 
-int lame_decode_initfile(FILE * fd, mp3data_struct * mp3data, int format);
-int lame_decode_fromfile(FILE * fd, short pcm_l[], short pcm_r[], mp3data_struct * mp3data);
+int hip_decode_initfile(hip_t hip, FILE * fd, mp3data_struct * mp3data, int format);
+int hip_decode_fromfile(hip_t hip_handle, FILE * fd, short pcm_l[], short pcm_r[], mp3data_struct * mp3data);
 
 int buf_probe_mp3(unsigned char *_buf, int len, ProbeTrackInfo *pcm);
 
