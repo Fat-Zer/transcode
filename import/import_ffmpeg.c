@@ -558,12 +558,19 @@ MOD_decode {
   uint8_t   *src_planes[3];
   uint8_t   *dst_planes[3];
   int        src_fmt, dst_fmt;
-  AVFrame    picture;
+  int        rv = TC_IMPORT_ERROR;
+  AVFrame   *picture = 0;
+
+  picture = av_frame_alloc();
+  if (!picture) {
+      tc_log_warn (MOD_NAME, "failed to allocate frame object");
+      goto cleanup;
+  }
 
   if (param->flag == TC_VIDEO) {
     bytes_read = AVI_read_frame(avifile, (char*)buffer, &key);
 
-    if (bytes_read < 0) return TC_IMPORT_ERROR;
+    if (bytes_read < 0) goto cleanup;
 
     if (key) param->attributes |= TC_FRAME_IS_KEYFRAME;
 
@@ -607,14 +614,14 @@ MOD_decode {
       param->size = (int) bytes_read;
       ac_memcpy(param->buffer, buffer, bytes_read);
 
-      return TC_IMPORT_OK;
+      goto cleanup;
     }
 
     if (bytes_read == 0) {
         // repeat last frame
         ac_memcpy(param->buffer, frame, frame_size);
         param->size = frame_size;
-        return TC_IMPORT_OK;
+        goto cleanup;
     }
 
     // ------------
@@ -626,32 +633,33 @@ retry:
       TC_LOCK_LIBAVCODEC;
       AVPacket avpkt;
       av_init_packet(&avpkt);
-      avpkt.data = NULL;
-      avpkt.size = 0;
-      len = avcodec_decode_video2(lavc_dec_context, &picture,
-			         &got_picture, &avpkt);
+      avpkt.data = buffer;
+      avpkt.size = bytes_read;
+      len = avcodec_decode_video2(lavc_dec_context, picture,
+                                  &got_picture, &avpkt);
       TC_UNLOCK_LIBAVCODEC;
 
       if (len < 0) {
-	tc_log_warn (MOD_NAME, "frame decoding failed");
-        return TC_IMPORT_ERROR;
+        tc_log_warn (MOD_NAME, "frame decoding failed");
+        goto cleanup;
       }
       if (!got_picture) {
 	if (avifile->video_pos == 1) {
 
 	  bytes_read = AVI_read_frame(avifile, (char*)buffer, &key);
-	  if (bytes_read < 0) return TC_IMPORT_ERROR;
+	  if (bytes_read < 0) goto cleanup;
 	  param->attributes &= ~TC_FRAME_IS_KEYFRAME;
 	  if (key) param->attributes |= TC_FRAME_IS_KEYFRAME;
-	  goto retry;
+          goto retry;
 
 	} else {
 
 	  // repeat last frame
 	  ac_memcpy(param->buffer, frame, frame_size);
 	  param->size = frame_size;
-	  return TC_IMPORT_OK;
-	}
+          rv = TC_IMPORT_OK;
+          goto cleanup;
+        }
       }
     } while (0);
 
@@ -667,30 +675,30 @@ retry:
         YUV_INIT_PLANES(src_planes, frame, src_fmt,
                         lavc_dec_context->width, lavc_dec_context->height);
 
-	// Remove "dead space" at right edge of planes, if any
-	if (picture.linesize[0] != lavc_dec_context->width) {
-	    int y;
-	    for (y = 0; y < lavc_dec_context->height; y++) {
+        // Remove "dead space" at right edge of planes, if any
+        if (picture->linesize[0] != lavc_dec_context->width) {
+            int y;
+            for (y = 0; y < lavc_dec_context->height; y++) {
                 ac_memcpy(src_planes[0] + y*lavc_dec_context->width,
-			  picture.data[0] + y*picture.linesize[0],
-			  lavc_dec_context->width);
-	    }
-	    for (y = 0; y < lavc_dec_context->height / 2; y++) {
-		ac_memcpy(src_planes[1] + y*(lavc_dec_context->width/2),
-			  picture.data[1] + y*picture.linesize[1],
-			  lavc_dec_context->width/2);
-		ac_memcpy(src_planes[2] + y*(lavc_dec_context->width/2),
-			  picture.data[2] + y*picture.linesize[2],
-			  lavc_dec_context->width/2);
-	    }
-	} else {
-	    ac_memcpy(src_planes[0], picture.data[0],
-		      lavc_dec_context->width * lavc_dec_context->height);
-	    ac_memcpy(src_planes[1], picture.data[1],
-		      (lavc_dec_context->width/2)*(lavc_dec_context->height/2));
-	    ac_memcpy(src_planes[2], picture.data[2],
-		      (lavc_dec_context->width/2)*(lavc_dec_context->height/2));
-	}
+                        picture->data[0] + y*picture->linesize[0],
+                        lavc_dec_context->width);
+            }
+            for (y = 0; y < lavc_dec_context->height / 2; y++) {
+                ac_memcpy(src_planes[1] + y*(lavc_dec_context->width/2),
+                        picture->data[1] + y*picture->linesize[1],
+                        lavc_dec_context->width/2);
+                ac_memcpy(src_planes[2] + y*(lavc_dec_context->width/2),
+                        picture->data[2] + y*picture->linesize[2],
+                        lavc_dec_context->width/2);
+            }
+        } else {
+            ac_memcpy(src_planes[0], picture->data[0],
+                    lavc_dec_context->width * lavc_dec_context->height);
+            ac_memcpy(src_planes[1], picture->data[1],
+                    (lavc_dec_context->width/2)*(lavc_dec_context->height/2));
+            ac_memcpy(src_planes[2], picture->data[2],
+                    (lavc_dec_context->width/2)*(lavc_dec_context->height/2));
+        }
         break;
 
       case AV_PIX_FMT_YUV411P:
@@ -698,26 +706,26 @@ retry:
         YUV_INIT_PLANES(src_planes, frame, src_fmt,
                         lavc_dec_context->width, lavc_dec_context->height);
 
-	if (picture.linesize[0] != lavc_dec_context->width) {
-	    int y;
+        if (picture->linesize[0] != lavc_dec_context->width) {
+            int y;
             for (y = 0; y < lavc_dec_context->height; y++) {
                 ac_memcpy(src_planes[0] + y*lavc_dec_context->width,
-			              picture.data[0] + y*picture.linesize[0],
-                          lavc_dec_context->width);
+                          picture->data[0] + y*picture->linesize[0],
+                        lavc_dec_context->width);
                 ac_memcpy(src_planes[1] + y*(lavc_dec_context->width/4),
-			              picture.data[1] + y*picture.linesize[1],
+                          picture->data[1] + y*picture->linesize[1],
                           lavc_dec_context->width/4);
                 ac_memcpy(src_planes[2] + y*(lavc_dec_context->width/4),
-			              picture.data[2] + y*picture.linesize[2],
+                          picture->data[2] + y*picture->linesize[2],
                           lavc_dec_context->width/4);
             }
-	} else {
-	    ac_memcpy(src_planes[0], picture.data[0],
-		      lavc_dec_context->width * lavc_dec_context->height);
-	    ac_memcpy(src_planes[1], picture.data[1],
-		      (lavc_dec_context->width/4) * lavc_dec_context->height);
-	    ac_memcpy(src_planes[2], picture.data[2],
-		      (lavc_dec_context->width/4) * lavc_dec_context->height);
+        } else {
+            ac_memcpy(src_planes[0], picture->data[0],
+                    lavc_dec_context->width * lavc_dec_context->height);
+            ac_memcpy(src_planes[1], picture->data[1],
+                    (lavc_dec_context->width/4) * lavc_dec_context->height);
+            ac_memcpy(src_planes[2], picture->data[2],
+                    (lavc_dec_context->width/4) * lavc_dec_context->height);
         }
         break;
 
@@ -727,28 +735,28 @@ retry:
         YUV_INIT_PLANES(src_planes, frame, src_fmt,
                         lavc_dec_context->width, lavc_dec_context->height);
 
-        if (picture.linesize[0] != lavc_dec_context->width) {
-	    int y;
+        if (picture->linesize[0] != lavc_dec_context->width) {
+            int y;
             for (y = 0; y < lavc_dec_context->height; y++) {
                 ac_memcpy(src_planes[0] + y*lavc_dec_context->width,
-			              picture.data[0] + y*picture.linesize[0],
-                          lavc_dec_context->width);
+                        picture->data[0] + y*picture->linesize[0],
+                        lavc_dec_context->width);
                 ac_memcpy(src_planes[1] + y*(lavc_dec_context->width/2),
-			              picture.data[1] + y*picture.linesize[1],
-                          lavc_dec_context->width/2);
+                        picture->data[1] + y*picture->linesize[1],
+                        lavc_dec_context->width/2);
                 ac_memcpy(src_planes[2] + y*(lavc_dec_context->width/2),
-			              picture.data[2] + y*picture.linesize[2],
+                        picture->data[2] + y*picture->linesize[2],
                           lavc_dec_context->width/2);
             }
-	} else {
-	    ac_memcpy(src_planes[0], picture.data[0],
-		      lavc_dec_context->width * lavc_dec_context->height);
-	    ac_memcpy(src_planes[1], picture.data[1],
-		      (lavc_dec_context->width/2) * lavc_dec_context->height);
-	    ac_memcpy(src_planes[2], picture.data[2],
-		      (lavc_dec_context->width/2) * lavc_dec_context->height);
+        } else {
+            ac_memcpy(src_planes[0], picture->data[0],
+                    lavc_dec_context->width * lavc_dec_context->height);
+            ac_memcpy(src_planes[1], picture->data[1],
+                    (lavc_dec_context->width/2) * lavc_dec_context->height);
+            ac_memcpy(src_planes[2], picture->data[2],
+                    (lavc_dec_context->width/2) * lavc_dec_context->height);
         }
-	break;
+        break;
 
       case AV_PIX_FMT_YUVJ444P:
       case AV_PIX_FMT_YUV444P:
@@ -756,43 +764,46 @@ retry:
         YUV_INIT_PLANES(src_planes, frame, src_fmt,
                         lavc_dec_context->width, lavc_dec_context->height);
 
-	if (picture.linesize[0] != lavc_dec_context->width) {
-	    int y;
+        if (picture->linesize[0] != lavc_dec_context->width) {
+            int y;
             for (y = 0; y < lavc_dec_context->height; y++) {
-                ac_memcpy(picture.data[0] + y*lavc_dec_context->width,
-			              picture.data[0] + y*picture.linesize[0],
-                          lavc_dec_context->width);
-                ac_memcpy(picture.data[1] + y*lavc_dec_context->width,
-			              picture.data[1] + y*picture.linesize[1],
-                          lavc_dec_context->width);
-                ac_memcpy(picture.data[2] + y*lavc_dec_context->width,
-			              picture.data[2] + y*picture.linesize[2],
+                ac_memcpy(picture->data[0] + y*lavc_dec_context->width,
+                        picture->data[0] + y*picture->linesize[0],
+                        lavc_dec_context->width);
+                ac_memcpy(picture->data[1] + y*lavc_dec_context->width,
+                        picture->data[1] + y*picture->linesize[1],
+                        lavc_dec_context->width);
+                ac_memcpy(picture->data[2] + y*lavc_dec_context->width,
+                        picture->data[2] + y*picture->linesize[2],
                           lavc_dec_context->width);
             }
-	} else {
-	    ac_memcpy(src_planes[0], picture.data[0],
-		      lavc_dec_context->width * lavc_dec_context->height);
-	    ac_memcpy(src_planes[1], picture.data[1],
-		      lavc_dec_context->width * lavc_dec_context->height);
-	    ac_memcpy(src_planes[2], picture.data[2],
-		      lavc_dec_context->width * lavc_dec_context->height);
+        } else {
+            ac_memcpy(src_planes[0], picture->data[0],
+                    lavc_dec_context->width * lavc_dec_context->height);
+            ac_memcpy(src_planes[1], picture->data[1],
+                    lavc_dec_context->width * lavc_dec_context->height);
+            ac_memcpy(src_planes[2], picture->data[2],
+                    lavc_dec_context->width * lavc_dec_context->height);
         }
         break;
 
       default:
-	tc_log_warn(MOD_NAME, "Unsupported decoded frame format: %d",
-		    lavc_dec_context->pix_fmt);
-        return TC_IMPORT_ERROR;
+        tc_log_warn(MOD_NAME, "Unsupported decoded frame format: %d",
+                    lavc_dec_context->pix_fmt);
+        goto cleanup;
     }
 
     ac_imgconvert(src_planes, src_fmt, dst_planes, dst_fmt,
                   lavc_dec_context->width, lavc_dec_context->height);
     param->size = frame_size;
 
-    return TC_IMPORT_OK;
+    rv = TC_IMPORT_OK;
+    goto cleanup;
   }
 
-  return TC_IMPORT_ERROR;
+cleanup:
+  if(picture) av_frame_free(&picture);
+  return rv;
 }
 
 /* ------------------------------------------------------------
