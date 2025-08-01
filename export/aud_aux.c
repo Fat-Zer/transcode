@@ -50,9 +50,10 @@
 
 static AVCodec        *mpa_codec = NULL;
 static AVCodecContext mpa_ctx;
-static char           *mpa_buf     = NULL;
+static unsigned char  *mpa_buf     = NULL;
 static int            mpa_buf_ptr  = 0;
-static int            mpa_bytes_ps, mpa_bytes_pf;
+static int            mpa_bytes_pf;
+static AVFrame        *mpa_frame   = NULL;
 
 #endif
 
@@ -138,6 +139,10 @@ static int tc_audio_mute(char *aud_buffer, int aud_size, avi_t *avifile);
 static char * lame_error2str(int error);
 static void no_debug(const char *format, va_list ap) {return;}
 static int tc_get_mp3_header(unsigned char* hbuf, int* chans, int* srate);
+#endif
+
+#ifdef HAVE_FFMPEG
+static int tc_audio_encode_frame_ffmpeg(const uint8_t *frame_buffer, avi_t *avifile, int *got_packet);
 #endif
 
 /**
@@ -380,15 +385,26 @@ static int tc_audio_init_ffmpeg(vob_t *vob, int o_codec)
         return(TC_EXPORT_ERROR);
     }
 
-    //-- bytes per sample and bytes per frame --
-    mpa_bytes_ps = mpa_ctx.channels * vob->dm_bits/8;
-    mpa_bytes_pf = mpa_ctx.frame_size * mpa_bytes_ps;
+    //-- allocate and setup frame object --
+    mpa_frame = av_frame_alloc();
+    if (!mpa_frame) {
+        tc_warn("tc_audio_init_ffmpeg: could not allocate audio frame\n");
+        return(TC_EXPORT_ERROR);
+    }
+
+    assert(mpa_ctx.frame_size);
+    mpa_frame->nb_samples     = mpa_ctx.frame_size;
+    mpa_frame->format         = mpa_ctx.sample_fmt;
+    mpa_frame->channel_layout = mpa_ctx.channel_layout;
+
+    //-- calculate buffer size (aka bytes per frame) --
+    mpa_bytes_pf = av_samples_get_buffer_size(NULL, mpa_ctx.channels, mpa_ctx.frame_size,
+                                            mpa_ctx.sample_fmt, 0);
 
     //-- create buffer to hold 1 frame --
     mpa_buf     = malloc(mpa_bytes_pf);
     mpa_buf_ptr = 0;
     init_ret    = TC_EXPORT_OK;
-
 #else  /* HAVE_FFMPEG */
     tc_warn("No FFmpeg support available!");
 #endif /* HAVE_FFMPEG */
@@ -859,6 +875,7 @@ static int tc_audio_encode_ffmpeg(char *aud_buffer, int aud_size, avi_t *avifile
 #ifdef HAVE_FFMPEG
     int  in_size, out_size;
     char *in_buf;
+    int ret, got_packet;
 
     //-- input buffer and amount of bytes --
     in_size = aud_size;
@@ -877,13 +894,12 @@ static int tc_audio_encode_ffmpeg(char *aud_buffer, int aud_size, avi_t *avifile
       //------------------------------
       if ( bytes_avail >= bytes_needed ) {
 
-    ac_memcpy(&mpa_buf[mpa_buf_ptr], in_buf, bytes_needed);
+        ac_memcpy(&mpa_buf[mpa_buf_ptr], in_buf, bytes_needed);
 
-    TC_LOCK_LIBAVCODEC;
-    out_size = avcodec_encode_audio(&mpa_ctx, (unsigned char *)output,
-                    OUTPUT_SIZE, (short *)mpa_buf);
-    TC_UNLOCK_LIBAVCODEC;
-    tc_audio_write(output, out_size, avifile);
+        ret = tc_audio_encode_frame_ffmpeg(mpa_buf, avifile, &got_packet);
+        if (ret < 0) {
+            return TC_EXPORT_ERROR;
+        }
 
         in_size -= bytes_needed;
         in_buf  += bytes_needed;
@@ -906,12 +922,10 @@ static int tc_audio_encode_ffmpeg(char *aud_buffer, int aud_size, avi_t *avifile
     //----------------------------------------------------
 
     while (in_size >= mpa_bytes_pf) {
-      TC_LOCK_LIBAVCODEC;
-      out_size = avcodec_encode_audio(&mpa_ctx, (unsigned char *)output,
-                      OUTPUT_SIZE, (short *)in_buf);
-      TC_UNLOCK_LIBAVCODEC;
-
-      tc_audio_write(output, out_size, avifile);
+      ret = tc_audio_encode_frame_ffmpeg(in_buf, avifile, &got_packet);
+      if (ret < 0) {
+          return TC_EXPORT_ERROR;
+      }
 
       in_size -= mpa_bytes_pf;
       in_buf  += mpa_bytes_pf;
@@ -924,12 +938,56 @@ static int tc_audio_encode_ffmpeg(char *aud_buffer, int aud_size, avi_t *avifile
       ac_memcpy(mpa_buf, in_buf, mpa_buf_ptr);
     }
 
+    //-- encoder might have some delayed packets left --
+    do {
+      ret = tc_audio_encode_frame_ffmpeg(NULL, avifile, &got_packet);
+      if (ret < 0) {
+          return TC_EXPORT_ERROR;
+      }
+    } while(got_packet);
+
     return(TC_EXPORT_OK);
 #else   // HAVE_FFMPEG
     tc_warn("No FFMPEG support available!");
     return(TC_EXPORT_ERROR);
 #endif
 }
+
+#ifdef HAVE_FFMPEG
+static int tc_audio_encode_frame_ffmpeg(const uint8_t *frame_buffer, avi_t *avifile, int *got_packet)
+{
+    int ret;
+    AVPacket pkt;
+    AVFrame *frame = frame_buffer ? mpa_frame : NULL;
+
+    *got_packet = 0;
+
+    if (frame) {
+        //-- imbue frame with our data --
+        avcodec_fill_audio_frame(frame, mpa_ctx.channels,
+                mpa_ctx.sample_fmt, frame_buffer,
+                mpa_bytes_pf, 0);
+    }
+
+    av_init_packet(&pkt);
+    pkt.data = (uint8_t *)output;
+    pkt.size = OUTPUT_SIZE;
+
+    //-- actually do the encoding --
+    TC_LOCK_LIBAVCODEC;
+    ret = avcodec_encode_audio2(&mpa_ctx, &pkt, frame, got_packet);
+    TC_UNLOCK_LIBAVCODEC;
+
+    if (ret<0) {
+        tc_warn("ffmpeg encodder failed: %s", av_err2str(ret));
+    } else if( *got_packet ) {
+        tc_audio_write((char *)pkt.data, pkt.size , avifile);
+        av_packet_unref(&pkt);
+    }
+
+    return ret;
+}
+#endif
 
 static int tc_audio_pass_through_ac3(char *aud_buffer, int aud_size, avi_t *avifile)
 {
@@ -1093,14 +1151,16 @@ int tc_audio_stop()
 #ifdef HAVE_FFMPEG
     if (tc_audio_encode_function == tc_audio_encode_ffmpeg)
     {
-        //-- release encoder --
-        if (mpa_codec) avcodec_close(&mpa_ctx);
-
         //-- cleanup buffer resources --
         if (mpa_buf) free(mpa_buf);
         mpa_buf     = NULL;
         mpa_buf_ptr = 0;
 
+        //-- cleanup packet and frame objects --
+        if (mpa_frame) av_frame_free(&mpa_frame);
+
+        //-- release encoder --
+        if (mpa_codec) avcodec_close(&mpa_ctx);
     }
 #endif    
 
