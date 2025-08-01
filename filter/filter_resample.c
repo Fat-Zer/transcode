@@ -38,6 +38,7 @@
 #include "libtc/tcavcodec.h"
 #include "libtc/tcmodule-plugin.h"
 #include <libswresample/swresample.h>
+#include <libavutil/opt.h>
 
 
 typedef struct {
@@ -111,14 +112,19 @@ static int resample_configure(TCModuleInstance *self,
         goto abort;
     }
 
-    pd->resample_ctx = av_audio_resample_init(vob->a_chan, vob->a_chan,
-                                           vob->mp3frequency, vob->a_rate,
-                                           AV_SAMPLE_FMT_S16, AV_SAMPLE_FMT_S16,
-                                           16, 10, 0, 0.8);
+    int64_t channel_layout = av_get_default_channel_layout(vob->a_chan);
+    pd->resample_ctx = swr_alloc_set_opts(NULL,
+                                          channel_layout, AV_SAMPLE_FMT_S16, vob->mp3frequency,
+                                          channel_layout, AV_SAMPLE_FMT_S16, vob->a_rate,
+                                          0, NULL);
+    /* ?? shouldn't AV_SAMPLE_FMT_S16 be determined by vob->a_rate ?? */
+
     if (pd->resample_ctx == NULL) {
         tc_log_error(MOD_NAME, "can't get a resample context");
         goto abort;
     }
+
+    swr_init(pd->resample_ctx);
 
     /* 
      * this will force this resample filter to do the job, not the export module.
@@ -150,7 +156,7 @@ static int resample_stop(TCModuleInstance *self)
     pd = self->userdata;
 
     if (pd->resample_ctx != NULL) {
-        audio_resample_close(pd->resample_ctx);
+        swr_free(&pd->resample_ctx);
         pd->resample_ctx = NULL;
     }
     if (pd->resample_buf != NULL) {
@@ -187,11 +193,19 @@ static int resample_filter_audio(TCModuleInstance *self, aframe_list_t *frame)
     if (verbose >= TC_STATS)
         tc_log_info(MOD_NAME, "inbuf: %i, bufsize: %lu",
                     frame->audio_size, (unsigned long)pd->resample_bufsize);
-    frame->audio_size = audio_resample(pd->resample_ctx,
-                                       (int16_t*)pd->resample_buf,
-                                       (int16_t*)frame->audio_buf,
-                                       frame->audio_size/pd->bytes_per_sample);
-    frame->audio_size *= pd->bytes_per_sample;
+
+    int frame_count = frame->audio_size / pd->bytes_per_sample;
+    /* note: we can use the same deviser because both our treks have the same samplerate */
+    int out_count = pd->resample_bufsize / pd->bytes_per_sample;
+
+    int resampled_count = swr_convert(pd->resample_ctx,
+                                       &pd->resample_buf, out_count,
+                                       (const uint8_t**)&frame->audio_buf, frame_count);
+    if (resampled_count < 0) {
+        tc_log_error(MOD_NAME, "resampler failed");
+        return TC_ERROR;
+    }
+    frame->audio_size = resampled_count * pd->bytes_per_sample;
     if (verbose >= TC_STATS)
         tc_log_info(MOD_NAME, "outbuf: %i", frame->audio_size);
 
