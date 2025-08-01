@@ -297,7 +297,9 @@ static int parse_line(const char *buf, TCConfigEntry *conf, const char *tag,
     char *name, *value, *s;
 
     /* Make a working copy of the string */
-    if (strlcpy(workbuf, buf, sizeof(workbuf)) >= sizeof(workbuf)) {
+    workbuf[sizeof(workbuf)-1] = 0;
+    stpncpy(workbuf, buf, sizeof(workbuf));
+    if (workbuf[sizeof(workbuf)-1]) {
         parse_line_error(buf, filename, line, tag,
                          "Buffer overflow while parsing configuration data");
         return 0;
