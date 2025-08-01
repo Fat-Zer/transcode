@@ -995,7 +995,7 @@ static void tc_lavc_config_defaults(TCLavcPrivateData *pd)
     pd->ff_vcontext.b_sensitivity           = 40;
     pd->ff_vcontext.brd_scale               = 0;
     pd->ff_vcontext.bidir_refine            = 0;
-    pd->confdata.rc_strategy                = 2;
+    pd->confdata.rc_strategy                = 0;
     pd->ff_vcontext.b_quant_factor          = 1.25;
     pd->ff_vcontext.i_quant_factor          = 0.8;
     pd->ff_vcontext.b_quant_offset          = 1.25;
@@ -1196,7 +1196,7 @@ static int tc_lavc_read_config(TCLavcPrivateData *pd,
         { "vrc_maxrate", PAUX(rc_max_rate), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 24000000 },
         { "vrc_minrate", PAUX(rc_min_rate), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 24000000 },
         { "vrc_buf_size", PAUX(rc_buffer_size), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 4, 24000000 },
-        { "vrc_strategy", PAUX(rc_strategy), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 2 },
+        { "vrc_strategy", PAUX(rc_strategy), TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 1 },
         { "vb_qfactor", PCTX(b_quant_factor), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, -31.0, 31.0 },
         { "vi_qfactor", PCTX(i_quant_factor), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, -31.0, 31.0 },
         { "vb_qoffset", PCTX(b_quant_offset), TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 31.0 },

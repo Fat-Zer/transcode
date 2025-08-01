@@ -46,7 +46,7 @@ float lavc_param_vi_qoffset = 0.0;
 int lavc_param_vmax_b_frames = 0;
 //int lavc_param_keyint = -1;
 //int lavc_param_vpass = 0;
-int lavc_param_vrc_strategy = 2;
+int lavc_param_vrc_strategy = 0;
 int lavc_param_vb_strategy = 0;
 int lavc_param_luma_elim_threshold = 0;
 int lavc_param_chroma_elim_threshold = 0;
@@ -149,7 +149,7 @@ TCConfigEntry lavcopts_conf[]={
     {"vb_qfactor", &lavc_param_vb_qfactor, TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, -31.0, 31.0},
     {"vmax_b_frames", &lavc_param_vmax_b_frames, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, INT_MAX},
 //    {"vpass", &lavc_param_vpass, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 2},
-    {"vrc_strategy", &lavc_param_vrc_strategy, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 2},
+    {"vrc_strategy", &lavc_param_vrc_strategy, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 1},
     {"vb_strategy", &lavc_param_vb_strategy, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, 0, 10},
     {"vb_qoffset", &lavc_param_vb_qoffset, TCCONF_TYPE_FLOAT, TCCONF_FLAG_RANGE, 0.0, 31.0},
     {"vlelim", &lavc_param_luma_elim_threshold, TCCONF_TYPE_INT, TCCONF_FLAG_RANGE, -99, 99},
