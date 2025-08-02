@@ -1615,6 +1615,10 @@ MOD_encode
     lavc_venc_frame->interlaced_frame = interlacing_active;
     lavc_venc_frame->top_field_first = interlacing_top_first;
 
+    lavc_venc_frame->format = lavc_venc_context->pix_fmt;
+    lavc_venc_frame->width  = lavc_venc_context->width;
+    lavc_venc_frame->height = lavc_venc_context->height;
+
     switch (pix_fmt)
     {
         case CODEC_YUV:
@@ -1691,12 +1695,13 @@ MOD_encode
                                     lavc_venc_frame, &got_packet);
     TC_UNLOCK_LIBAVCODEC;
 
-    out_size = ret ? ret : pkt.size;
-
-    if (out_size < 0) {
-      tc_log_warn(MOD_NAME, "encoder error: size (%d)", out_size);
+    if (ret < 0) {
+      tc_log_warn(MOD_NAME, "encoder error: %s (%d)", av_err2str(ret), ret);
       return TC_EXPORT_ERROR;
+    } else {
+        out_size = pkt.size;
     }
+
     if (verbose & TC_STATS) {
       tc_log_warn(MOD_NAME, "encoder: size of encoded (%d)", out_size);
     }
