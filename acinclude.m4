@@ -38,6 +38,8 @@ AC_DEFINE([HAVE_LIMITS_H], 1,
           [Define to 1 if you have the <limits.h> include file.])
 AC_DEFINE([HAVE_STDARG_H], 1,
           [Define to 1 if you have the <stdarg.h> include file.])
+AC_DEFINE([HAVE_STDBOOL_H], 1,
+          [Define to 1 if you have the <stdbool.h> include file.])
 AC_DEFINE([HAVE_STDDEF_H], 1,
           [Define to 1 if you have the <stddef.h> include file.])
 AC_DEFINE([HAVE_STDINT_H], 1,
